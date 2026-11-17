@@ -17,7 +17,7 @@ export function ReturnScreen({ code }: { code: string }) {
   }, [code])
   return (
     <Page title="קליטת תשובה" back="#">
-      {err ? <Banner kind="bad">{err}</Banner> : <p class="muted">בודק את התשובה…</p>}
+      {err ? <Banner kind="bad">{err}</Banner> : <p class="muted">בודק את התשובה</p>}
     </Page>
   )
 }

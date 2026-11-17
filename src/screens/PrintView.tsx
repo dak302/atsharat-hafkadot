@@ -3,7 +3,8 @@ import header from '../assets/header.png'
 import { fmtDate, fmtMoney } from '../lib/grid'
 import { getDecl, putDecl } from '../lib/store'
 import type { Declaration } from '../lib/types'
-import { Banner } from '../lib/ui'
+import { ArrowRight, Printer } from 'lucide-preact'
+import { Banner, ICON } from '../lib/ui'
 
 const DECL_AID =
   'הנני מצהיר כי כל הפרטים אשר מסרתי בטופס זה נכונים, מלאים, מדויקים וכנים, וכי לא העלמתי כל פרט שהוא. הנני מצהיר כי הוזהרתי בעת מילוי טופס זה בדבר חובתי למסור את האמת ואת כל האמת וידוע לי כי מסירת פרטים בלתי נכונים, באופן מלא או חלקי, או העלמת פרטים כל שהם, וכן אי הודעה בזמן על שינוי בפרטים אותם מסרתי בטופס זה, מהווה עבירה על החוק, ותגרור בעקבותיה עונשים כקבוע בחוק ושלילת זכויות שנרכשו על-פי ההצהרה. ידוע לי שצה״ל עשוי להיעזר בחברת חקירות אזרחיות שמטרתה בדיקת נכונות הפרטים שמסרתי.'
@@ -83,14 +84,16 @@ export function PrintView({ id }: { id: string }) {
     <div class="printwrap">
       <div class="noprint tools">
         <a class="btn" href={'#d/' + d.id}>
-          → חזרה
+          <ArrowRight {...ICON} />
+          חזרה
         </a>
         <button class="btn primary" onClick={print}>
-          הדפס / שמור כ-PDF
+          <Printer {...ICON} />
+          הדפסה או שמירה כ-PDF
         </button>
-        <span class="muted">בחלון ההדפסה בחר "שמירה כ-PDF", גודל A4, בלי כותרות עליונות ותחתונות.</span>
-        {disputes > 0 && <Banner kind="warn">{disputes} שורות עדיין מסומנות "לא מסכים".</Banner>}
-        {d.report.status !== 'verified' && <Banner kind="warn">קריאת העו"ש של ההצהרה הזו לא אומתה מול היתרות.</Banner>}
+        <span class="muted">בחלון ההדפסה בוחרים שמירה כ-PDF, גודל A4, בלי כותרות עליונות ותחתונות</span>
+        {disputes > 0 && <Banner kind="warn">{disputes} שורות עדיין מסומנות כשגויות</Banner>}
+        {d.report.status !== 'verified' && <Banner kind="warn">קריאת העו"ש של ההצהרה הזו לא אומתה מול היתרות</Banner>}
       </div>
 
       <article class="sheet">

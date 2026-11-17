@@ -4,7 +4,8 @@ import { readStatement, type FileResult } from '../lib/files'
 import { fmtDate, fmtMoney } from '../lib/grid'
 import { newId, putDecl } from '../lib/store'
 import type { DeclType, Declaration } from '../lib/types'
-import { Banner, Page } from '../lib/ui'
+import { Upload } from 'lucide-preact'
+import { Banner, ICON, Page, Stamp } from '../lib/ui'
 
 export function NewDecl() {
   const [type, setType] = useState<DeclType>('aid')
@@ -55,6 +56,7 @@ export function NewDecl() {
     go('#d/' + d.id)
   }
 
+  const money = (n: number) => (n < 0 ? '−' : '') + fmtMoney(n)
   const rep = res?.report
   const problems = (rep?.issues.length ?? 0) + (res?.fileWarnings.length ?? 0)
   const blocked = !res || !res.txs.length || (rep!.status !== 'verified' && !ack) || (problems > 0 && !ack)
@@ -87,26 +89,48 @@ export function NewDecl() {
           </div>
         )}
         <label class="field">
-          <span>שם החייל (לזיהוי אצלך בלבד)</span>
+          <span>שם החייל, לזיהוי אצלך בלבד</span>
           <input value={label} onInput={(e) => setLabel(e.currentTarget.value)} placeholder="ישראל ישראלי" />
         </label>
-        <label class="field">
-          <span>קובץ העו"ש: PDF מקורי מהבנק או אקסל</span>
-          <input type="file" accept=".pdf,.xlsx,.xls,.csv,.html,.htm" onChange={(e) => pick(e.currentTarget.files?.[0])} />
-        </label>
+        <div class="field">
+          <span>קובץ העו"ש, PDF מקורי מהבנק או אקסל</span>
+          <div class="filepick">
+            <label class="btn">
+              <Upload {...ICON} />
+              בחירת קובץ
+              <input type="file" accept=".pdf,.xlsx,.xls,.csv,.html,.htm" hidden onChange={(e) => pick(e.currentTarget.files?.[0])} />
+            </label>
+            <span class="fname">{file?.name ?? ''}</span>
+          </div>
+        </div>
       </section>
 
-      {busy && <p class="muted">קורא את הקובץ…</p>}
+      {busy && <p class="muted">קורא את הקובץ</p>}
       {err && <Banner kind="bad">{err}</Banner>}
 
       {res && rep && (
         <section class="card">
           <h2>תוצאת הקריאה</h2>
-          {rep.status === 'verified' && (
-            <Banner kind="ok">
-              <b>מאומת.</b> נקראו {rep.count} תנועות וכל היתרות מתאזנות שורה אחרי שורה.
-            </Banner>
+          {rep.opening != null && rep.count > 0 && (
+            <div class="recon">
+              <div>
+                <small>יתרת פתיחה</small>
+                <span class="num">{money(rep.opening)}</span>
+              </div>
+              <span class="op">+</span>
+              <div>
+                <small>{rep.count} תנועות</small>
+                <span class="num">{money(rep.closing! - rep.opening)}</span>
+              </div>
+              <span class="op">=</span>
+              <div>
+                <small>יתרת סגירה</small>
+                <span class="num">{money(rep.closing!)}</span>
+              </div>
+              {rep.status === 'verified' && <Stamp big>מאומת</Stamp>}
+            </div>
           )}
+          {rep.status === 'verified' && <Banner kind="ok">כל {rep.count} התנועות מתאזנות מול היתרה, שורה אחרי שורה</Banner>}
           {rep.status === 'unverified' && (
             <Banner kind="warn">
               <b>לא ניתן לאמת.</b> נקראו {rep.count} תנועות, אבל בקובץ אין עמודת יתרה ולכן אי אפשר לוודא שלא חסרה שורה.
@@ -114,7 +138,7 @@ export function NewDecl() {
           )}
           {rep.status === 'failed' && (
             <Banner kind="bad">
-              <b>הקריאה לא מאומתת.</b> נמצאו {rep.issues.length} בעיות. אל תסמוך על התוצאה בלי לבדוק מול העו"ש.
+              <b>הקריאה לא מאומתת.</b> נמצאו {rep.issues.length} בעיות. אין לסמוך על התוצאה בלי לבדוק מול העו"ש.
             </Banner>
           )}
           {res.fileWarnings.map((w) => (
@@ -128,23 +152,15 @@ export function NewDecl() {
                   {i.msg}
                 </li>
               ))}
-              {rep.issues.length > 12 && <li>ועוד {rep.issues.length - 12}…</li>}
+              {rep.issues.length > 12 && <li>ועוד {rep.issues.length - 12}</li>}
             </ul>
           )}
           {rep.count > 0 && (
             <dl class="facts">
               <dt>תקופה</dt>
               <dd>
-                {fmtDate(rep.from!)} עד {fmtDate(rep.to!)}
+                <span class="num">{fmtDate(rep.from!)}</span> עד <span class="num">{fmtDate(rep.to!)}</span>
               </dd>
-              {rep.opening != null && (
-                <>
-                  <dt>יתרת פתיחה</dt>
-                  <dd dir="ltr">{(rep.opening < 0 ? '-' : '') + fmtMoney(rep.opening)}</dd>
-                  <dt>יתרת סגירה</dt>
-                  <dd dir="ltr">{(rep.closing! < 0 ? '-' : '') + fmtMoney(rep.closing!)}</dd>
-                </>
-              )}
               <dt>חשבון</dt>
               <dd>{[res.account.bank, res.account.branch, res.account.number].filter(Boolean).join(' · ') || 'לא זוהה'}</dd>
             </dl>
@@ -155,7 +171,7 @@ export function NewDecl() {
               <span>בדקתי ידנית מול העו"ש ואני ממשיך על אחריותי</span>
             </label>
           )}
-          <button class="btn primary big" disabled={blocked} onClick={create}>
+          <button class="btn primary block" disabled={blocked} onClick={create}>
             המשך לבחירת השורות
           </button>
         </section>
