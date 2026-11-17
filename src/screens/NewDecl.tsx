@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks'
 import { go } from '../app'
 import { readStatement, type FileResult } from '../lib/files'
 import { fmtDate, fmtMoney } from '../lib/grid'
+import { checkFp, type FpCheck } from '../lib/fingerprint'
 import { newId, putDecl } from '../lib/store'
 import type { DeclType, Declaration } from '../lib/types'
 import { Upload } from 'lucide-preact'
@@ -13,6 +14,7 @@ export function NewDecl() {
   const [recipient, setRecipient] = useState<'soldier' | 'owner'>('soldier')
   const [file, setFile] = useState<File | null>(null)
   const [res, setRes] = useState<FileResult | null>(null)
+  const [fpc, setFpc] = useState<FpCheck | null>(null)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [ack, setAck] = useState(false)
@@ -25,7 +27,9 @@ export function NewDecl() {
     if (!f) return
     setBusy(true)
     try {
-      setRes(await readStatement(f))
+      const r = await readStatement(f)
+      setFpc(checkFp(r.account.bank, r.fp))
+      setRes(r)
     } catch (e) {
       setErr((e as Error).message || 'הקובץ לא נקרא.')
     }
@@ -43,6 +47,7 @@ export function NewDecl() {
       status: 'draft',
       fileName: file.name,
       fileHash: res.fileHash,
+      fp: res.fp,
       report: res.report,
       account: res.account,
       txs: res.txs,
@@ -58,7 +63,7 @@ export function NewDecl() {
 
   const money = (n: number) => (n < 0 ? '−' : '') + fmtMoney(n)
   const rep = res?.report
-  const problems = (rep?.issues.length ?? 0) + (res?.fileWarnings.length ?? 0)
+  const problems = (rep?.issues.length ?? 0) + (res?.fileWarnings.length ?? 0) + (fpc?.status === 'mismatch' ? 1 : 0)
   const blocked = !res || !res.txs.length || (rep!.status !== 'verified' && !ack) || (problems > 0 && !ack)
 
   return (
@@ -141,6 +146,12 @@ export function NewDecl() {
               <b>הקריאה לא מאומתת.</b> נמצאו {rep.issues.length} בעיות. אין לסמוך על התוצאה בלי לבדוק מול העו"ש.
             </Banner>
           )}
+          {fpc?.status === 'mismatch' && (
+            <Banner kind="warn">
+              <b>הקובץ שונה מקבצים קודמים של {fpc.bank}.</b> שונה: {fpc.diffs.join(', ')}. כדאי לבקש מהחייל להוריד אותו שוב
+              מאפליקציית הבנק.
+            </Banner>
+          )}
           {res.fileWarnings.map((w) => (
             <Banner kind="warn">{w}</Banner>
           ))}
@@ -163,6 +174,13 @@ export function NewDecl() {
               </dd>
               <dt>חשבון</dt>
               <dd>{[res.account.bank, res.account.branch, res.account.number].filter(Boolean).join(' · ') || 'לא זוהה'}</dd>
+              <dt>מקור</dt>
+              <dd>
+                {fpc?.status === 'match' && `תואם לקבצים קודמים של ${fpc.bank}`}
+                {fpc?.status === 'new' && `קובץ ראשון של ${fpc.bank} במכשיר הזה, יישמר כדוגמה אחרי הפקת ה-PDF`}
+                {fpc?.status === 'mismatch' && <span class="neg">שונה מקבצים קודמים של {fpc.bank}</span>}
+                {fpc?.status === 'nobank' && 'הבנק לא זוהה, אין למה להשוות'}
+              </dd>
             </dl>
           )}
           {res.txs.length > 0 && (rep.status !== 'verified' || problems > 0) && (

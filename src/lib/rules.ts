@@ -31,8 +31,32 @@ export interface MonthSummary {
 export const monthOf = (d: string) => d.slice(0, 7)
 
 /** מפתח לזיהוי מקור חוזר: התיאור בלי ספרות ותווים משתנים */
-function sourceKey(tx: Tx): string {
-  return tx.desc.replace(/[\d/.\-:,'"״׳·]+/g, ' ').replace(/\s+/g, ' ').trim()
+export function sourceKeyOf(desc: string): string {
+  return desc.replace(/[\d/.\-:,'"״׳·]+/g, ' ').replace(/\s+/g, ' ').trim()
+}
+const sourceKey = (tx: Tx) => sourceKeyOf(tx.desc)
+
+export interface RowGroup {
+  key: string
+  rows: LockedRow[]
+}
+
+/** מאחד שורות מאותו מקור, באותו כיוון ובאותו סיווג, כדי שיוסברו פעם אחת. הסדר נשמר לפי השורה הראשונה בכל קבוצה. */
+export function groupRows(rows: LockedRow[]): RowGroup[] {
+  const map = new Map<string, RowGroup>()
+  const out: RowGroup[] = []
+  for (const r of rows) {
+    const src = sourceKeyOf(r.s)
+    const k = src ? `${src}|${r.a > 0 ? '+' : '-'}|${r.k ?? ''}` : `#${r.i}`
+    let g = map.get(k)
+    if (!g) {
+      g = { key: k, rows: [] }
+      map.set(k, g)
+      out.push(g)
+    }
+    g.rows.push(r)
+  }
+  return out
 }
 
 export function summarize(txs: Tx[]): MonthSummary[] {
