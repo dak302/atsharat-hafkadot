@@ -26,5 +26,5 @@
 npm install
 npm run dev      # פיתוח
 npm test         # בדיקות
-npm run build    # בנייה לתיקיית dist (אתר סטטי, כולל netlify.toml)
+npm run build    # בנייה לתיקיית dist, אתר סטטי שאפשר לאחסן בכל מקום
 ```
