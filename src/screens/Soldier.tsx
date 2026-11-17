@@ -10,9 +10,6 @@ const MARITAL = ['נשוי/אה', 'גרוש/ה', 'פרוד/ה', 'אלמן/ה']
 const DECLARE =
   'אני מצהיר/ה כי כל הפרטים שמסרתי נכונים, מלאים, מדויקים וכנים, וכי לא העלמתי כל פרט. ידוע לי כי מסירת פרטים בלתי נכונים או העלמת פרטים מהווה עבירה על החוק.'
 
-const CHIPS_DEP = ['משכורת', 'העברה ממשפחה', 'מתנה', 'החזר כספי']
-const CHIPS_WD = ['משיכת מזומן להוצאות שוטפות', 'העברה למשפחה', 'שכר דירה', 'תשלום חוב']
-
 interface Draft {
   p: Person
   ans: Record<number, Answer>
@@ -188,7 +185,6 @@ export function Soldier({ code }: { code: string }) {
                 {g.rows.length} פעולות מאותו מקור, הסבר אחד לכולן
                 {g.rows[0].k && <span class="hint">{g.rows[0].k === 'f' ? 'הכנסה קבועה' : 'הכנסה חד פעמית'}</span>}
               </div>
-              {!exp && <Chips dep={dep} pick={(t) => setMany(ids, t)} />}
               <textarea
                 rows={2}
                 maxLength={300}
@@ -218,7 +214,6 @@ export function Soldier({ code }: { code: string }) {
                 {r.k && <span class="hint">{r.k === 'f' ? 'הכנסה קבועה' : 'הכנסה חד פעמית'}</span>}
               </div>
               {pl.fix?.[r.i] && <div class="manual">המשק ביקש לתקן: {pl.fix[r.i]}</div>}
-              {!a.exp && <Chips dep={r.a > 0} pick={(t) => setA(r.i, { exp: t })} />}
               <textarea
                 rows={2}
                 maxLength={300}
@@ -276,18 +271,6 @@ export function Soldier({ code }: { code: string }) {
         )}
       </section>
     </Page>
-  )
-}
-
-function Chips(props: { dep: boolean; pick: (t: string) => void }) {
-  return (
-    <div class="chips">
-      {(props.dep ? CHIPS_DEP : CHIPS_WD).map((t) => (
-        <button class="chip" type="button" onClick={() => props.pick(t)}>
-          {t}
-        </button>
-      ))}
-    </div>
   )
 }
 
