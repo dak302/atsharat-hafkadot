@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { decodePayload, encodePayload, lockHash } from '../lib/codec'
 import { fmtDate } from '../lib/grid'
+import { groupRows, type RowGroup } from '../lib/rules'
 import type { Account, Answer, Person, ReturnPayload, SendPayload } from '../lib/types'
 import { Check, Copy, Send } from 'lucide-preact'
 import { Amount, appUrl, Banner, copy, ICON, Page, Stamp, waLink } from '../lib/ui'
@@ -9,9 +10,14 @@ const MARITAL = ['נשוי/אה', 'גרוש/ה', 'פרוד/ה', 'אלמן/ה']
 const DECLARE =
   'אני מצהיר/ה כי כל הפרטים שמסרתי נכונים, מלאים, מדויקים וכנים, וכי לא העלמתי כל פרט. ידוע לי כי מסירת פרטים בלתי נכונים או העלמת פרטים מהווה עבירה על החוק.'
 
+const CHIPS_DEP = ['משכורת', 'העברה ממשפחה', 'מתנה', 'החזר כספי']
+const CHIPS_WD = ['משיכת מזומן להוצאות שוטפות', 'העברה למשפחה', 'שכר דירה', 'תשלום חוב']
+
 interface Draft {
   p: Person
   ans: Record<number, Answer>
+  /** קבוצות שהמצהיר בחר להסביר שורה-שורה */
+  split?: string[]
 }
 
 export function Soldier({ code }: { code: string }) {
@@ -53,6 +59,12 @@ export function Soldier({ code }: { code: string }) {
   const setP = (patch: Partial<Person>) => save({ ...draft, p: { ...draft.p, ...patch } })
   const setA = (i: number, patch: Partial<Answer>) =>
     save({ ...draft, ans: { ...draft.ans, [i]: { ...(draft.ans[i] ?? { exp: '' }), ...patch } } })
+  const setMany = (ids: number[], exp: string) => {
+    const ans = { ...draft.ans }
+    for (const i of ids) ans[i] = { ...(ans[i] ?? { exp: '' }), exp }
+    save({ ...draft, ans })
+  }
+  const splitGroup = (key: string) => save({ ...draft, split: [...(draft.split ?? []), key] })
   const setAcct = (which: 'acct' | 'acct2', patch: Partial<Account>) => setP({ [which]: { ...draft.p[which], ...patch } })
 
   if (err) {
@@ -81,6 +93,13 @@ export function Soldier({ code }: { code: string }) {
     return !!a && (a.exp.trim().length >= 2 || (a.dispute && (a.note ?? '').trim().length >= 2))
   }
   const missingRows = pl.rows.filter((r) => !rowOk(r.i)).length
+  /** קבוצה מוצגת שורה-שורה אם יש בה שורה אחת, אם המצהיר פיצל, או אם יש בה הערת תיקון, סימון שגיאה או הסברים שונים מסבב קודם */
+  const isSplit = (g: RowGroup) => {
+    if (g.rows.length < 2 || draft.split?.includes(g.key)) return true
+    const ans = g.rows.map((r) => draft.ans[r.i])
+    if (g.rows.some((r) => pl.fix?.[r.i]) || ans.some((a) => a?.dispute)) return true
+    return new Set(ans.map((a) => a?.exp ?? '')).size > 1
+  }
   const ready = !missingP.length && !missingRows && agree
 
   async function finish() {
@@ -144,40 +163,79 @@ export function Soldier({ code }: { code: string }) {
       </section>
 
       <h2>{pl.rows.length} פעולות להסבר</h2>
-      {pl.rows.map((r, n) => {
-        const a = draft.ans[r.i] ?? { exp: '' }
-        const bad = tried && !rowOk(r.i)
-        return (
-          <section class={'card entry rowcard' + (bad ? ' bad' : '') + (pl.fix?.[r.i] ? ' fixme' : '')} key={r.i}>
-            <div class="ehead">
-              <span class="date num">
-                {n + 1}. {fmtDate(r.d)}
-              </span>
-              <span class="kind">{r.a > 0 ? 'הפקדה' : 'משיכה'}</span>
-              <Stamp>נעול</Stamp>
-              <Amount value={r.a} />
-            </div>
-            <div class="desc">
-              {r.s}
-              {r.k && <span class="hint">{r.k === 'f' ? 'הכנסה קבועה' : 'הכנסה חד פעמית'}</span>}
-            </div>
-            {pl.fix?.[r.i] && <div class="manual">המשק ביקש לתקן: {pl.fix[r.i]}</div>}
-            <textarea
-              rows={2}
-              maxLength={300}
-              placeholder="עבור מה, ממי או למי, קבוע או חד פעמי"
-              value={a.exp}
-              onInput={(e) => setA(r.i, { exp: e.currentTarget.value })}
-            />
-            <label class="check small">
-              <input type="checkbox" checked={!!a.dispute} onChange={(e) => setA(r.i, { dispute: e.currentTarget.checked })} />
-              <span>לדעתי השורה שגויה</span>
-            </label>
-            {a.dispute && (
-              <input maxLength={200} placeholder="מה לא נכון" value={a.note ?? ''} onInput={(e) => setA(r.i, { note: e.currentTarget.value })} />
-            )}
-          </section>
-        )
+      {groupRows(pl.rows).map((g) => {
+        if (!isSplit(g)) {
+          const ids = g.rows.map((r) => r.i)
+          const exp = draft.ans[ids[0]]?.exp ?? ''
+          const dep = g.rows[0].a > 0
+          const bad = tried && ids.some((i) => !rowOk(i))
+          return (
+            <section class={'card entry rowcard' + (bad ? ' bad' : '')} key={g.key}>
+              <div class="ehead">
+                <span class="gtitle">{g.rows[0].s}</span>
+                <Stamp>נעול</Stamp>
+              </div>
+              <ul class="glist">
+                {g.rows.map((r) => (
+                  <li key={r.i}>
+                    <span class="date num">{fmtDate(r.d)}</span>
+                    <span class="kind">{dep ? 'הפקדה' : 'משיכה'}</span>
+                    <Amount value={r.a} />
+                  </li>
+                ))}
+              </ul>
+              <div class="desc">
+                {g.rows.length} פעולות מאותו מקור, הסבר אחד לכולן
+                {g.rows[0].k && <span class="hint">{g.rows[0].k === 'f' ? 'הכנסה קבועה' : 'הכנסה חד פעמית'}</span>}
+              </div>
+              {!exp && <Chips dep={dep} pick={(t) => setMany(ids, t)} />}
+              <textarea
+                rows={2}
+                maxLength={300}
+                placeholder="עבור מה, ממי או למי, קבוע או חד פעמי"
+                value={exp}
+                onInput={(e) => setMany(ids, e.currentTarget.value)}
+              />
+              <button class="link" onClick={() => splitGroup(g.key)}>
+                הסבר נפרד לכל פעולה
+              </button>
+            </section>
+          )
+        }
+        return g.rows.map((r) => {
+          const a = draft.ans[r.i] ?? { exp: '' }
+          const bad = tried && !rowOk(r.i)
+          return (
+            <section class={'card entry rowcard' + (bad ? ' bad' : '') + (pl.fix?.[r.i] ? ' fixme' : '')} key={r.i}>
+              <div class="ehead">
+                <span class="date num">{fmtDate(r.d)}</span>
+                <span class="kind">{r.a > 0 ? 'הפקדה' : 'משיכה'}</span>
+                <Stamp>נעול</Stamp>
+                <Amount value={r.a} />
+              </div>
+              <div class="desc">
+                {r.s}
+                {r.k && <span class="hint">{r.k === 'f' ? 'הכנסה קבועה' : 'הכנסה חד פעמית'}</span>}
+              </div>
+              {pl.fix?.[r.i] && <div class="manual">המשק ביקש לתקן: {pl.fix[r.i]}</div>}
+              {!a.exp && <Chips dep={r.a > 0} pick={(t) => setA(r.i, { exp: t })} />}
+              <textarea
+                rows={2}
+                maxLength={300}
+                placeholder="עבור מה, ממי או למי, קבוע או חד פעמי"
+                value={a.exp}
+                onInput={(e) => setA(r.i, { exp: e.currentTarget.value })}
+              />
+              <label class="check small">
+                <input type="checkbox" checked={!!a.dispute} onChange={(e) => setA(r.i, { dispute: e.currentTarget.checked })} />
+                <span>לדעתי השורה שגויה</span>
+              </label>
+              {a.dispute && (
+                <input maxLength={200} placeholder="מה לא נכון" value={a.note ?? ''} onInput={(e) => setA(r.i, { note: e.currentTarget.value })} />
+              )}
+            </section>
+          )
+        })
       })}
 
       <section class="card">
@@ -218,6 +276,18 @@ export function Soldier({ code }: { code: string }) {
         )}
       </section>
     </Page>
+  )
+}
+
+function Chips(props: { dep: boolean; pick: (t: string) => void }) {
+  return (
+    <div class="chips">
+      {(props.dep ? CHIPS_DEP : CHIPS_WD).map((t) => (
+        <button class="chip" type="button" onClick={() => props.pick(t)}>
+          {t}
+        </button>
+      ))}
+    </div>
   )
 }
 
