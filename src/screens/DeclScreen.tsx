@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
+import { Check, Copy, Lock, Printer, Send, Trash2 } from 'lucide-preact'
 import { go } from '../app'
 import { encodePayload } from '../lib/codec'
 import { fmtDate, fmtMoney } from '../lib/grid'
-import { AID_MONTH_LIMIT, evaluate, monthOf, summarize } from '../lib/rules'
+import { AID_MONTH_LIMIT, AID_ROW_LIMIT, evaluate, monthOf, summarize } from '../lib/rules'
 import { buildSend, deleteDecl, getDecl, payloadOf, putDecl } from '../lib/store'
 import type { Declaration } from '../lib/types'
-import { appUrl, Banner, copy, Page, STATUS_NAME, TYPE_NAME, waLink } from '../lib/ui'
+import { Amount, appUrl, Banner, copy, ICON, Page, STATUS_NAME, TYPE_NAME, waLink } from '../lib/ui'
 
 const MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 const monthName = (m: string) => `${MONTHS[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`
@@ -15,7 +16,7 @@ export function DeclScreen({ id }: { id: string }) {
   if (!d) {
     return (
       <Page title="לא נמצא" back="#">
-        <Banner kind="bad">ההצהרה לא נמצאת במכשיר הזה.</Banner>
+        <Banner kind="bad">ההצהרה לא נמצאת במכשיר הזה</Banner>
       </Page>
     )
   }
@@ -31,17 +32,19 @@ export function DeclScreen({ id }: { id: string }) {
       go('#')
     }
   }
-  const title = `${d.label || 'הצהרה'} · ${TYPE_NAME[d.type]}`
   return (
-    <Page title={title} back="#" wide>
-      <p class="muted">
-        <span class={'tag ' + d.status}>{STATUS_NAME[d.status]}</span> {d.account.bank ?? ''} · {d.fileName}
-        {d.report.status !== 'verified' && <b class="red"> · קריאת הקובץ לא אומתה</b>}
+    <Page title={d.label || 'הצהרה'} back="#" wide>
+      <p class="sub">
+        <span class={'tag ' + d.status}>{STATUS_NAME[d.status]}</span>
+        <span>{TYPE_NAME[d.type]}</span>
+        <span>{d.account.bank ?? d.fileName}</span>
+        {d.report.status !== 'verified' && <span class="neg">קריאת הקובץ לא אומתה</span>}
       </p>
       {d.status === 'draft' && <Review d={d} update={update} setD={setD} />}
       {d.status === 'sent' && <Sent d={d} update={update} />}
       {(d.status === 'returned' || d.status === 'done') && <Returned d={d} update={update} setD={setD} />}
-      <button class="link red" onClick={remove}>
+      <button class="link neg" onClick={remove}>
+        <Trash2 size={16} strokeWidth={1.5} />
         מחיקת ההצהרה מהמכשיר
       </button>
     </Page>
@@ -50,11 +53,32 @@ export function DeclScreen({ id }: { id: string }) {
 
 type Upd = (fn: (d: Declaration) => void) => void
 
+/** סכום חודשי מול רף ה-600. הפס מתמלא עד הרף ומעבר לו, והקו מסמן את הרף עצמו. */
+function Meter(props: { label: string; sum: number; over: boolean; limit: boolean }) {
+  const scale = Math.max(props.sum, AID_MONTH_LIMIT * 2)
+  return (
+    <span class={'meter' + (props.limit && props.over ? ' over' : '')}>
+      <span>{props.label}</span>
+      <span class="num">{fmtMoney(props.sum)}</span>
+      {props.limit && (
+        <>
+          <span class="track" aria-hidden="true">
+            <i style={{ width: (props.sum / scale) * 100 + '%' }} />
+            <b style={{ insetInlineStart: (AID_MONTH_LIMIT / scale) * 100 + '%' }} />
+          </span>
+          <span class="mstate">{props.over ? `מעל ${AID_MONTH_LIMIT}` : `עד ${AID_MONTH_LIMIT}`}</span>
+        </>
+      )}
+    </span>
+  )
+}
+
 function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: Declaration) => void }) {
   const [onlySel, setOnlySel] = useState(false)
   const rows = useMemo(() => evaluate(d.type, d.txs, d.overrides), [d])
   const months = useMemo(() => summarize(d.txs), [d.txs])
   const selected = rows.filter((r) => r.include).length
+  const aid = d.type === 'aid'
 
   const toggle = (id: number, include: boolean, auto: boolean) =>
     update((x) => {
@@ -80,65 +104,72 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
   return (
     <>
       <Banner kind="info">
-        {d.type === 'aid'
-          ? `הכלל: אם סך ההפקדות בחודש (או סך המשיכות, בנפרד) עולה על ${AID_MONTH_LIMIT} ₪, נבחרת כל פעולה מעל 200 ₪.`
-          : 'הכלל: הכנסה קבועה מ-250 ₪, הכנסה חד פעמית מ-750 ₪, והוצאות רכב. הוצאות חריגות אחרות מסמנים ידנית.'}{' '}
-        אפשר לסמן או להסיר כל שורה.
+        {aid
+          ? `בחודש שבו סך ההפקדות, או סך המשיכות, עולה על ${AID_MONTH_LIMIT} ₪, נבחרת כל פעולה מאותו סוג מעל ${AID_ROW_LIMIT} ₪. אפשר לסמן או להסיר כל שורה.`
+          : 'נבחרות הכנסה קבועה מ-250 ₪, הכנסה חד פעמית מ-750 ₪ והוצאות רכב. הוצאות חריגות אחרות מסמנים ידנית.'}
       </Banner>
-      <label class="check">
+      <label class="check small">
         <input type="checkbox" checked={onlySel} onChange={(e) => setOnlySel(e.currentTarget.checked)} />
-        <span>הצג רק שורות שנבחרו</span>
+        <span>רק שורות שנבחרו</span>
       </label>
       {months.map((m) => {
         const mr = rows.filter((r) => monthOf(r.tx.date) === m.month && (!onlySel || r.include))
         return (
           <section class="month" key={m.month}>
-            <h3>
-              {monthName(m.month)}
-              <span class={'sum' + (d.type === 'aid' && m.depositsOver ? ' over' : '')}>הפקדות {fmtMoney(m.deposits)}</span>
-              <span class={'sum' + (d.type === 'aid' && m.withdrawalsOver ? ' over' : '')}>משיכות {fmtMoney(m.withdrawals)}</span>
-            </h3>
-            {mr.length === 0 && <p class="muted">אין שורות להצגה.</p>}
-            {mr.map((r) => (
-              <div class={'tx' + (r.include ? ' sel' : '')} key={r.tx.id}>
-                <label class="pick">
-                  <input type="checkbox" checked={r.include} onChange={(e) => toggle(r.tx.id, e.currentTarget.checked, r.auto)} />
-                </label>
-                <div class="grow">
-                  <div class="line">
-                    <span class="date">{fmtDate(r.tx.date)}</span>
-                    <span class={'amt ' + (r.tx.amount > 0 ? 'dep' : 'wd')}>
-                      {r.tx.amount > 0 ? 'הפקדה' : 'משיכה'} <b>{fmtMoney(r.tx.amount)}</b>
+            <header class="mhead">
+              <h3>{monthName(m.month)}</h3>
+              <Meter label="הפקדות" sum={m.deposits} over={m.depositsOver} limit={aid} />
+              <Meter label="משיכות" sum={m.withdrawals} over={m.withdrawalsOver} limit={aid} />
+            </header>
+            {mr.length === 0 ? (
+              <p class="muted">אין שורות נבחרות בחודש הזה</p>
+            ) : (
+              <div class="ledger">
+                {mr.map((r) => (
+                  <div class={'tx' + (r.include ? ' sel' : '')} key={r.tx.id}>
+                    <label class="pick">
+                      <input
+                        type="checkbox"
+                        checked={r.include}
+                        aria-label={`${fmtDate(r.tx.date)} ${r.tx.desc}`}
+                        onChange={(e) => toggle(r.tx.id, e.currentTarget.checked, r.auto)}
+                      />
+                    </label>
+                    <span class="date num">{fmtDate(r.tx.date)}</span>
+                    <span class="desc">{r.tx.desc || 'ללא תיאור'}</span>
+                    <span class="note">
+                      {!aid && r.include && r.auto && r.tx.amount < 0 && <span>הוצאת רכב</span>}
+                      {r.include !== r.auto && <span class="manual">{r.include ? 'נוסף ידנית' : 'הוסר ידנית'}</span>}
+                      {!aid && r.tx.amount > 0 && (
+                        <span class="seg small">
+                          <button class={r.fixed ? 'on' : ''} onClick={() => setFixed(r.tx.id, true, !!r.autoFixed)}>
+                            קבועה
+                          </button>
+                          <button class={!r.fixed ? 'on' : ''} onClick={() => setFixed(r.tx.id, false, !!r.autoFixed)}>
+                            חד פעמית
+                          </button>
+                        </span>
+                      )}
                     </span>
+                    <span class="kind">{r.tx.amount > 0 ? 'הפקדה' : 'משיכה'}</span>
+                    <Amount value={r.tx.amount} />
                   </div>
-                  <div class="desc">{r.tx.desc || '—'}</div>
-                  <div class="meta">
-                    {r.reason && <span class="why">{r.reason}</span>}
-                    {r.include !== r.auto && <span class="manual">{r.include ? 'נוסף ידנית' : 'הוסר ידנית'}</span>}
-                    {d.type === 'tashmash' && r.tx.amount > 0 && (
-                      <span class="seg small">
-                        <button class={r.fixed ? 'on' : ''} onClick={() => setFixed(r.tx.id, true, !!r.autoFixed)}>
-                          קבועה
-                        </button>
-                        <button class={!r.fixed ? 'on' : ''} onClick={() => setFixed(r.tx.id, false, !!r.autoFixed)}>
-                          חד פעמית
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
+            )}
           </section>
         )
       })}
       <div class="bar">
-        <span>
-          נבחרו <b>{selected}</b> מתוך {rows.length} תנועות
-        </span>
-        <button class="btn primary" disabled={!selected} onClick={send}>
-          נעל ושלח ל{d.recipient === 'owner' ? 'בעל החשבון' : 'חייל'}
-        </button>
+        <div class="bar-in">
+          <span>
+            נבחרו <b>{selected}</b> מתוך <b>{rows.length}</b> תנועות
+          </span>
+          <button class="btn primary" disabled={!selected} onClick={send}>
+            <Lock {...ICON} />
+            נעילה ושליחה ל{d.recipient === 'owner' ? 'בעל החשבון' : 'חייל'}
+          </button>
+        </div>
       </div>
     </>
   )
@@ -156,30 +187,28 @@ function Sent({ d, update }: { d: Declaration; update: Upd }) {
   return (
     <>
       <section class="card">
-        <h2>שליחה ל{who}</h2>
+        <h2>
+          שליחה ל{who}, סבב {d.round}
+        </h2>
         <p>
-          ננעלו <b>{d.sent!.rows.length}</b> שורות (סבב {d.round}). {who} יכול לכתוב הסברים בלבד. תאריכים וסכומים נשארים
-          כפי שהם אצלך.
+          ננעלו <b class="num">{d.sent!.rows.length}</b> שורות. {who} יכול לכתוב הסברים בלבד, והתאריכים והסכומים נשארים כפי
+          שהם אצלך.
         </p>
         <label class="field">
-          <span>טלפון (לא חובה, אפשר לבחור איש קשר בוואטסאפ)</span>
+          <span>טלפון, לא חובה. בלי מספר בוחרים איש קשר בוואטסאפ</span>
           <input value={phone} onInput={(e) => setPhone(e.currentTarget.value)} inputMode="tel" dir="ltr" placeholder="050-0000000" />
         </label>
-        <div class="row">
+        <div class="actions">
           <a class={'btn primary' + (link ? '' : ' disabled')} href={link ? waLink(text, phone) : undefined} target="_blank" rel="noopener">
-            שלח בוואטסאפ
+            <Send {...ICON} />
+            שליחה בוואטסאפ
           </a>
-          <button
-            class="btn"
-            disabled={!link}
-            onClick={async () => {
-              setCopied(await copy(link))
-            }}
-          >
-            {copied ? 'הועתק ✓' : 'העתק קישור'}
+          <button class="btn" disabled={!link} onClick={async () => setCopied(await copy(link))}>
+            {copied ? <Check {...ICON} /> : <Copy {...ICON} />}
+            {copied ? 'הועתק' : 'העתקת קישור'}
           </button>
         </div>
-        <p class="muted">אורך הקישור: {link.length} תווים. כשהתשובה תחזור, לחץ על הקישור שהחייל שלח או הדבק אותו במסך הראשי.</p>
+        <p class="muted">כשהתשובה חוזרת, לוחצים על הקישור שהחייל שלח או מדביקים אותו במסך הראשי</p>
       </section>
       <button
         class="link"
@@ -191,7 +220,7 @@ function Sent({ d, update }: { d: Declaration; update: Upd }) {
             })
         }}
       >
-        חזרה לעריכת השורות (מבטל את הקישור שנשלח)
+        חזרה לעריכת השורות, מבטל את הקישור שנשלח
       </button>
     </>
   )
@@ -211,53 +240,52 @@ function Returned({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: 
     <>
       {disputes > 0 && (
         <Banner kind="warn">
-          {disputes} שורות סומנו "לא מסכים". בדוק מול העו"ש, ואז הסר את השורה (עריכת שורות) או החזר לתיקון.
+          <b>{disputes} שורות סומנו כשגויות.</b> בודקים מול העו"ש, ואז מסירים את השורה בעריכת שורות או מחזירים לתיקון.
         </Banner>
       )}
       <section class="card">
         <h2>פרטי המצהיר</h2>
         <dl class="facts">
           <dt>שם</dt>
-          <dd>{p.name ?? '—'}</dd>
+          <dd>{p.name ?? 'חסר'}</dd>
           {d.type === 'aid' ? (
             <>
               <dt>מספר אישי</dt>
-              <dd>{p.personalNum ?? '—'}</dd>
+              <dd class="num">{p.personalNum ?? ''}</dd>
             </>
           ) : (
             <>
               <dt>ת"ז</dt>
-              <dd>{p.idNum ?? '—'}</dd>
+              <dd class="num">{p.idNum ?? ''}</dd>
               <dt>מצב משפחתי</dt>
-              <dd>{p.marital ?? '—'}</dd>
+              <dd>{p.marital ?? 'חסר'}</dd>
               <dt>החייל</dt>
               <dd>
-                {p.soldierName ?? '—'} · {p.soldierNum ?? '—'}
+                {p.soldierName ?? 'חסר'} · <span class="num">{p.soldierNum ?? ''}</span>
               </dd>
               <dt>חשבון</dt>
-              <dd>{[p.acct?.bank, p.acct?.branch, p.acct?.number].filter(Boolean).join(' · ') || '—'}</dd>
+              <dd>{[p.acct?.bank, p.acct?.branch, p.acct?.number].filter(Boolean).join(' · ') || 'חסר'}</dd>
             </>
           )}
         </dl>
       </section>
-      {rows.map((r) => {
-        const a = d.answers[r.i]
-        return (
-          <div class={'tx sel' + (a?.dispute ? ' disputed' : '')} key={r.i}>
-            <div class="grow">
-              <div class="line">
-                <span class="date">{fmtDate(r.d)}</span>
-                <span class={'amt ' + (r.a > 0 ? 'dep' : 'wd')}>
-                  {r.a > 0 ? 'הפקדה' : 'משיכה'} <b>{fmtMoney(r.a)}</b>
-                </span>
+      <div class="ledger">
+        {rows.map((r) => {
+          const a = d.answers[r.i]
+          return (
+            <div class={'entry' + (a?.dispute ? ' disputed' : '')} key={r.i}>
+              <div class="ehead">
+                <span class="date num">{fmtDate(r.d)}</span>
+                <span class="kind">{r.a > 0 ? 'הפקדה' : 'משיכה'}</span>
+                <Amount value={r.a} />
               </div>
               <div class="desc">{r.s}</div>
-              <div class="exp">{a?.exp || <i>אין הסבר</i>}</div>
-              {a?.dispute && <div class="manual">לא מסכים: {a.note || 'בלי הערה'}</div>}
+              <div class="exp">{a?.exp || 'אין הסבר'}</div>
+              {a?.dispute && <div class="manual">לדעת המצהיר השורה שגויה: {a.note || 'בלי הערה'}</div>}
               {d.status === 'returned' && (
                 <input
                   class="fix"
-                  placeholder="הערה לתיקון (למשל: פרט ממי ההעברה)"
+                  placeholder="הערה לתיקון, למשל: ממי ההעברה"
                   value={d.fixNotes[r.i] ?? ''}
                   onInput={(e) => {
                     const v = e.currentTarget.value
@@ -269,24 +297,26 @@ function Returned({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: 
                 />
               )}
             </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
       <div class="bar">
-        {d.status === 'returned' ? (
-          <>
-            <button class="btn" disabled={!fixes} onClick={resend}>
-              החזר לתיקון ({fixes})
-            </button>
+        <div class="bar-in">
+          <span>
+            <b>{rows.length}</b> שורות עם הסבר
+          </span>
+          <span class="actions">
+            {d.status === 'returned' && (
+              <button class="btn" disabled={!fixes} onClick={resend}>
+                החזרה לתיקון{fixes ? ` (${fixes})` : ''}
+              </button>
+            )}
             <a class="btn primary" href={'#print/' + d.id}>
-              הפק PDF
+              <Printer {...ICON} />
+              הפקת PDF
             </a>
-          </>
-        ) : (
-          <a class="btn primary" href={'#print/' + d.id}>
-            הפק PDF שוב
-          </a>
-        )}
+          </span>
+        </div>
       </div>
       {d.status === 'returned' && (
         <button
@@ -298,7 +328,7 @@ function Returned({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: 
             })
           }
         >
-          עריכת שורות (הוספה או הסרה) ושליחה מחדש
+          עריכת שורות ושליחה מחדש
         </button>
       )}
     </>

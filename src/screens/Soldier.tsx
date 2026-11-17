@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'preact/hooks'
 import { decodePayload, encodePayload, lockHash } from '../lib/codec'
-import { fmtDate, fmtMoney } from '../lib/grid'
+import { fmtDate } from '../lib/grid'
 import type { Account, Answer, Person, ReturnPayload, SendPayload } from '../lib/types'
-import { appUrl, Banner, copy, Page, waLink } from '../lib/ui'
+import { Check, Copy, Send } from 'lucide-preact'
+import { Amount, appUrl, Banner, copy, ICON, Page, Stamp, waLink } from '../lib/ui'
 
 const MARITAL = ['נשוי/אה', 'גרוש/ה', 'פרוד/ה', 'אלמן/ה']
 const DECLARE =
@@ -61,7 +62,7 @@ export function Soldier({ code }: { code: string }) {
       </Page>
     )
   }
-  if (!pl) return <Page title="הצהרת הפקדות">טוען…</Page>
+  if (!pl) return <Page title="הצהרת הפקדות">{''}</Page>
 
   const tm = pl.t === 'tashmash'
   const p = draft.p
@@ -97,8 +98,7 @@ export function Soldier({ code }: { code: string }) {
   return (
     <Page title={tm ? 'הצהרה על הוצאות והכנסות חריגות' : 'הצהרה על משיכות והפקדות חריגות'}>
       <Banner kind="info">
-        המשק סימן {pl.rows.length} פעולות מהעו"ש שדורשות הסבר. יש לכתוב הסבר לכל אחת ולשלוח חזרה. את התאריך והסכום אי אפשר
-        לשנות.
+        המשק סימן {pl.rows.length} פעולות מהעו"ש שדורשות הסבר. כותבים הסבר לכל אחת ושולחים חזרה. התאריך והסכום נעולים.
       </Banner>
 
       <section class="card">
@@ -143,38 +143,38 @@ export function Soldier({ code }: { code: string }) {
         )}
       </section>
 
-      <h2>הפעולות ({pl.rows.length})</h2>
+      <h2>{pl.rows.length} פעולות להסבר</h2>
       {pl.rows.map((r, n) => {
         const a = draft.ans[r.i] ?? { exp: '' }
         const bad = tried && !rowOk(r.i)
         return (
-          <section class={'card rowcard' + (bad ? ' bad' : '') + (pl.fix?.[r.i] ? ' fixme' : '')} key={r.i}>
-            <div class="line">
-              <span class="date">
+          <section class={'card entry rowcard' + (bad ? ' bad' : '') + (pl.fix?.[r.i] ? ' fixme' : '')} key={r.i}>
+            <div class="ehead">
+              <span class="date num">
                 {n + 1}. {fmtDate(r.d)}
               </span>
-              <span class={'amt ' + (r.a > 0 ? 'dep' : 'wd')}>
-                {r.a > 0 ? 'הפקדה' : 'משיכה'} <b>{fmtMoney(r.a)} ₪</b>
-              </span>
+              <span class="kind">{r.a > 0 ? 'הפקדה' : 'משיכה'}</span>
+              <Stamp>נעול</Stamp>
+              <Amount value={r.a} />
             </div>
             <div class="desc">
               {r.s}
-              {r.k && <span class="why">{r.k === 'f' ? 'הכנסה קבועה' : 'הכנסה חד פעמית'}</span>}
+              {r.k && <span class="hint">{r.k === 'f' ? 'הכנסה קבועה' : 'הכנסה חד פעמית'}</span>}
             </div>
             {pl.fix?.[r.i] && <div class="manual">המשק ביקש לתקן: {pl.fix[r.i]}</div>}
             <textarea
               rows={2}
               maxLength={300}
-              placeholder="הסבר: עבור מה? ממי / למי? קבוע או חד פעמי?"
+              placeholder="עבור מה, ממי או למי, קבוע או חד פעמי"
               value={a.exp}
               onInput={(e) => setA(r.i, { exp: e.currentTarget.value })}
             />
             <label class="check small">
               <input type="checkbox" checked={!!a.dispute} onChange={(e) => setA(r.i, { dispute: e.currentTarget.checked })} />
-              <span>לדעתי השורה הזו שגויה</span>
+              <span>לדעתי השורה שגויה</span>
             </label>
             {a.dispute && (
-              <input maxLength={200} placeholder="מה לא נכון?" value={a.note ?? ''} onInput={(e) => setA(r.i, { note: e.currentTarget.value })} />
+              <input maxLength={200} placeholder="מה לא נכון" value={a.note ?? ''} onInput={(e) => setA(r.i, { note: e.currentTarget.value })} />
             )}
           </section>
         )
@@ -194,23 +194,25 @@ export function Soldier({ code }: { code: string }) {
         </label>
         {tried && !ready && (
           <Banner kind="bad">
-            {missingP.length > 0 && <div>חסר: {missingP.join(', ')}.</div>}
-            {missingRows > 0 && <div>חסר הסבר ל-{missingRows} פעולות.</div>}
-            {!agree && <div>יש לאשר את ההצהרה.</div>}
+            {missingP.length > 0 && <div>חסר: {missingP.join(', ')}</div>}
+            {missingRows > 0 && <div>חסר הסבר ל-{missingRows} פעולות</div>}
+            {!agree && <div>יש לאשר את ההצהרה</div>}
           </Banner>
         )}
         {!out ? (
-          <button class="btn primary big" onClick={finish}>
-            סיימתי, הכן לשליחה
+          <button class="btn primary block" onClick={finish}>
+            סיימתי, הכנה לשליחה
           </button>
         ) : (
           <>
-            <Banner kind="ok">מוכן. שלח את התשובה למשק. על הטופס המודפס חותמים אצל המשק.</Banner>
-            <a class="btn primary big" href={waLink(`הצהרת הפקדות, התשובה שלי:\n${out}`)} target="_blank" rel="noopener">
-              שלח למשק בוואטסאפ
+            <Banner kind="ok">מוכן לשליחה. על הטופס המודפס חותמים אצל המשק</Banner>
+            <a class="btn primary block" href={waLink(`הצהרת הפקדות, התשובה שלי:\n${out}`)} target="_blank" rel="noopener">
+              <Send {...ICON} />
+              שליחה למשק בוואטסאפ
             </a>
-            <button class="btn" onClick={async () => setCopied(await copy(out))}>
-              {copied ? 'הועתק ✓' : 'העתק קישור תשובה'}
+            <button class="btn block" onClick={async () => setCopied(await copy(out))}>
+              {copied ? <Check {...ICON} /> : <Copy {...ICON} />}
+              {copied ? 'הועתק' : 'העתקת קישור תשובה'}
             </button>
           </>
         )}
