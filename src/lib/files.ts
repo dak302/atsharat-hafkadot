@@ -60,7 +60,8 @@ function parseHtmlTables(text: string): Cell[][] {
   return rows
 }
 
-const EDITORS = /ilovepdf|smallpdf|sejda|pdfescape|foxit|phantompdf|acrobat pro|nitro|pdf-?xchange|canva|photoshop|illustrator|word|libreoffice|google docs|skia|chrom|quartz|pdfelement|wondershare|inkscape|pdfsam|pdf24|xodo/i
+// תוכנות עריכה. דפדפנים ו"הדפסה ל-PDF" לא ברשימה, כי חלק מהבנקים מפיקים את הקובץ כך
+const EDITORS = /ilovepdf|smallpdf|sejda|pdfescape|foxit|phantompdf|acrobat|nitro|pdf-?xchange|canva|photoshop|illustrator|microsoft.{0,4}word|libreoffice|openoffice|pdfelement|wondershare|inkscape|pdfsam|pdf24|xodo|pdffiller|dochub|camscanner/i
 
 async function readPdf(buf: ArrayBuffer): Promise<{ grid: Cell[][]; warnings: string[]; producer?: string; creator?: string }> {
   const pdfjs = await import('pdfjs-dist')
@@ -79,11 +80,6 @@ async function readPdf(buf: ArrayBuffer): Promise<{ grid: Cell[][]; warnings: st
     if (EDITORS.test(tool)) {
       warnings.push(`הקובץ נוצר או נשמר בתוכנה שאינה של בנק (${tool.trim().slice(0, 60)}). ייתכן שעבר עריכה או שהודפס מחדש.`)
     }
-    const c = String(info.CreationDate ?? '')
-    const m = String(info.ModDate ?? '')
-    if (c && m && c.slice(0, 16) !== m.slice(0, 16)) {
-      warnings.push('תאריך השינוי של הקובץ שונה מתאריך היצירה. ייתכן שהקובץ נערך אחרי שהופק.')
-    }
   } catch {
     /* אין מטא-דאטה */
   }
@@ -101,7 +97,7 @@ async function readPdf(buf: ArrayBuffer): Promise<{ grid: Cell[][]; warnings: st
     pages.push(items)
   }
   if (chars < 40) {
-    throw new Error('ב-PDF הזה אין טקסט (כנראה סריקה או צילום). יש לבקש את הקובץ המקורי שהורד מאפליקציית הבנק.')
+    throw new Error('ה-PDF הזה הוא תמונה (צילום מסך, צילום או סריקה), ואין בו טקסט לקרוא. יש לבקש מהחייל את הקובץ המקורי שהורד מהאתר או מהאפליקציה של הבנק.')
   }
   return { grid: pdfToGrid(pages), warnings, producer, creator }
 }
