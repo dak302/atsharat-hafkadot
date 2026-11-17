@@ -1,4 +1,5 @@
-import { parseGrid, type Cell } from './grid'
+import { clean, findHeader, parseGrid, type Cell } from './grid'
+import type { Fingerprint } from './fingerprint'
 import { pdfToGrid, type PdfItem } from './pdfgrid'
 import { sha256Hex } from './codec'
 import type { ParseResult } from './types'
@@ -7,6 +8,7 @@ export interface FileResult extends ParseResult {
   fileHash: string
   /** אזהרות על הקובץ עצמו (למשל PDF שעבר עריכה) */
   fileWarnings: string[]
+  fp: Fingerprint
 }
 
 function parseCsv(text: string): Cell[][] {
@@ -60,15 +62,19 @@ function parseHtmlTables(text: string): Cell[][] {
 
 const EDITORS = /ilovepdf|smallpdf|sejda|pdfescape|foxit|phantompdf|acrobat pro|nitro|pdf-?xchange|canva|photoshop|illustrator|word|libreoffice|google docs|skia|chrom|quartz|pdfelement|wondershare|inkscape|pdfsam|pdf24|xodo/i
 
-async function readPdf(buf: ArrayBuffer): Promise<{ grid: Cell[][]; warnings: string[] }> {
+async function readPdf(buf: ArrayBuffer): Promise<{ grid: Cell[][]; warnings: string[]; producer?: string; creator?: string }> {
   const pdfjs = await import('pdfjs-dist')
   const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default
   const doc = await pdfjs.getDocument({ data: new Uint8Array(buf) }).promise
   const warnings: string[] = []
+  let producer: string | undefined
+  let creator: string | undefined
   try {
     const meta = await doc.getMetadata()
     const info = (meta.info ?? {}) as Record<string, unknown>
+    producer = info.Producer ? String(info.Producer).slice(0, 80) : undefined
+    creator = info.Creator ? String(info.Creator).slice(0, 80) : undefined
     const tool = `${info.Producer ?? ''} ${info.Creator ?? ''}`
     if (EDITORS.test(tool)) {
       warnings.push(`הקובץ נוצר או נשמר בתוכנה שאינה של בנק (${tool.trim().slice(0, 60)}). ייתכן שעבר עריכה או שהודפס מחדש.`)
@@ -97,7 +103,7 @@ async function readPdf(buf: ArrayBuffer): Promise<{ grid: Cell[][]; warnings: st
   if (chars < 40) {
     throw new Error('ב-PDF הזה אין טקסט (כנראה סריקה או צילום). יש לבקש את הקובץ המקורי שהורד מאפליקציית הבנק.')
   }
-  return { grid: pdfToGrid(pages), warnings }
+  return { grid: pdfToGrid(pages), warnings, producer, creator }
 }
 
 export async function readStatement(file: File): Promise<FileResult> {
@@ -108,24 +114,31 @@ export async function readStatement(file: File): Promise<FileResult> {
   const name = file.name.toLowerCase()
   let grid: Cell[][]
   let fileWarnings: string[] = []
+  let fp: Omit<Fingerprint, 'header'> = { kind: 'sheet' }
   if (head.startsWith('%PDF')) {
     const r = await readPdf(buf)
     grid = r.grid
     fileWarnings = r.warnings
+    fp = { kind: 'pdf', producer: r.producer, creator: r.creator }
   } else if (head.startsWith('PK')) {
     const { default: readXlsx } = await import('read-excel-file/browser')
     const sheets = await readXlsx(file)
     // בוחרים את הגיליון עם הכי הרבה שורות
     const best = sheets.reduce((a, b) => (b.data.length > a.data.length ? b : a))
     grid = best.data as Cell[][]
+    fp = { kind: 'sheet', creator: 'xlsx:' + best.sheet }
   } else if (bytes[0] === 0xd0 && bytes[1] === 0xcf) {
     throw new Error('זה קובץ אקסל בפורמט ישן (xls). יש לפתוח אותו באקסל ולשמור כ-xlsx, או להוריד מהבנק כ-PDF.')
   } else {
     let text = new TextDecoder('utf-8').decode(bytes)
     if (text.includes('�')) text = new TextDecoder('windows-1255').decode(bytes)
-    if (/<table|<tr/i.test(text)) grid = parseHtmlTables(text)
-    else if (name.endsWith('.csv') || name.endsWith('.txt') || name.endsWith('.tsv')) grid = parseCsv(text)
+    if (/<table|<tr/i.test(text)) {
+      grid = parseHtmlTables(text)
+      fp = { kind: 'sheet', creator: 'html' }
+    } else if (name.endsWith('.csv') || name.endsWith('.txt') || name.endsWith('.tsv')) grid = parseCsv(text)
     else throw new Error('סוג קובץ לא נתמך. יש להעלות PDF מקורי מהבנק או קובץ אקסל.')
   }
-  return { ...parseGrid(grid), fileHash, fileWarnings }
+  const h = findHeader(grid)
+  const header = h ? grid[h.index].map(clean).filter(Boolean).join('|') : ''
+  return { ...parseGrid(grid), fileHash, fileWarnings, fp: { ...fp, header } }
 }
