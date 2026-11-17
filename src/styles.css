@@ -207,6 +207,16 @@ dl { margin-top: 0; }
 .entry .manual { font-size: 13px; line-height: 20px; }
 .hint { font-size: 12px; line-height: 16px; color: var(--ink3); margin-inline-start: 8px; }
 .rowcard.bad { border-color: var(--neg); }
+.gtitle { font-weight: 500; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.glist { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.glist li { display: flex; align-items: center; gap: 12px; min-height: 36px; border-bottom: 1px solid var(--line); }
+.glist .date { font-size: 13px; color: var(--ink2); }
+.glist .kind { font-size: 13px; color: var(--ink3); }
+.glist .amt { margin-inline-start: auto; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink2); font: 400 13px/20px var(--sans); cursor: pointer; transition: background-color 150ms var(--ease), color 150ms var(--ease); }
+.chip:hover { background: var(--raised); color: var(--ink); }
+.chip:active { transform: scale(0.98); }
 .rowcard.fixme { border-color: var(--warn); }
 
 .bar { position: fixed; inset-inline: 0; bottom: 0; z-index: 5; background: var(--card); border-top: 1px solid var(--line); }
