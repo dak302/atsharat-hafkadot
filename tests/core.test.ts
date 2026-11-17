@@ -193,25 +193,17 @@ describe('קישור וחותמת', () => {
   })
 })
 
-describe('טביעת אצבע של קובץ', async () => {
-  const { checkFp, diffFp } = await import('../src/lib/fingerprint')
-  const base = { kind: 'pdf' as const, producer: 'iText 5.5.13', creator: 'Bank App', header: 'תאריך|תיאור|חובה|זכות|יתרה' }
-  const store = { 'לאומי|pdf': [{ fp: base, n: 3, at: 0 }] }
-  it('מספרי גרסה לא נחשבים שינוי', () => {
-    expect(diffFp(base, { ...base, producer: 'iText 5.5.10' })).toEqual([])
+describe('פורמטים מוכרים של בנקים', async () => {
+  const { checkFp } = await import('../src/lib/fingerprint')
+  const header = 'תאריך|יום ערך|תיאור התנועה|אסמכתה|זכות/חובה ₪|יתרה ₪'
+  it('פורמט מוכר מהתוכנה של הבנק', () => {
+    expect(checkFp({ kind: 'pdf', producer: 'FreeForm System', header })).toEqual({ status: 'match', bank: 'דיסקונט / מרכנתיל' })
   })
-  it('מזהה תוכנה אחרת ומבנה אחר', () => {
-    expect(checkFp('לאומי', { ...base, producer: 'iLovePDF' }, store)).toEqual({
-      status: 'mismatch',
-      bank: 'לאומי',
-      diffs: ['התוכנה שיצרה את הקובץ'],
-    })
-    expect(checkFp('לאומי', { ...base, header: 'תאריך|סכום' }, store).status).toBe('mismatch')
+  it('אותו פורמט מתוכנת עריכה', () => {
+    expect(checkFp({ kind: 'pdf', producer: 'iLovePDF', header }).status).toBe('mismatch')
   })
-  it('תואם, בנק חדש, בנק לא מזוהה', () => {
-    expect(checkFp('לאומי', base, store)).toEqual({ status: 'match', bank: 'לאומי', seen: 3 })
-    expect(checkFp('הפועלים', base, store)).toEqual({ status: 'new', bank: 'הפועלים' })
-    expect(checkFp(undefined, base, store)).toEqual({ status: 'nobank' })
+  it('פורמט לא מוכר', () => {
+    expect(checkFp({ kind: 'pdf', producer: 'x', header: 'תאריך|סכום' })).toEqual({ status: 'unknown' })
   })
 })
 
@@ -228,5 +220,47 @@ describe('קיבוץ שורות להסבר אחד', async () => {
       { i: 7, d: '2026-04-05', a: 900, s: '' },
     ]
     expect(groupRows(rows).map((g) => g.rows.map((r) => r.i))).toEqual([[1, 3], [2, 5], [4], [6], [7]])
+  })
+})
+
+describe('מבנים מקבצים אמיתיים (נתונים מומצאים)', () => {
+  it('יתרה רק בחלק מהשורות (0 = לא מוצגת) נבדקת בשורה הבאה עם יתרה', () => {
+    const r = parseGrid([
+      ['תאריך', 'תיאור', 'זכות', 'חובה', 'יתרה', 'אסמכתא'],
+      ['01/03/2026', 'א', '', '100', '900', '1'],
+      ['02/03/2026', 'ב', '50', '', '0', '2'],
+      ['02/03/2026', 'ג', '', '30', '920', '3'],
+    ])
+    expect(r.report.status).toBe('verified')
+    expect(r.report.opening).toBe(1000)
+    const bad = parseGrid([
+      ['תאריך', 'תיאור', 'זכות', 'חובה', 'יתרה', 'אסמכתא'],
+      ['01/03/2026', 'א', '', '100', '900', '1'],
+      ['02/03/2026', 'ב', '500', '', '0', '2'],
+      ['02/03/2026', 'ג', '', '30', '920', '3'],
+    ])
+    expect(bad.report.status).toBe('failed')
+  })
+  it('תאריך עם יום בשבוע', () => {
+    expect(parseDate('ב׳ 26/10/26')).toBe('2026-10-26')
+    expect(parseDate("א' 01/03/2026")).toBe('2026-03-01')
+  })
+  it('תיאור שנשבר מעל ומתחת לשורה מוצמד לתנועה הנכונה', () => {
+    const it = (y: number, x: number, str: string): PdfItem => ({ str, x, y, w: str.length * 5 })
+    const page = [
+      it(700, 600, 'תאריך'), it(700, 500, 'תיאור'), it(700, 400, 'זכות'), it(700, 330, 'חובה'), it(700, 260, 'יתרה'),
+      it(680, 590, '01/03/2026'), it(680, 500, 'קניה'), it(680, 330, '100.00'), it(680, 255, '900.00'),
+      it(652, 500, 'החזרת חיוב'),
+      it(640, 590, '02/03/2026'), it(640, 400, '50.00'), it(640, 255, '950.00'),
+      it(628, 500, 'מסיבות טכניות'),
+      it(560, 300, 'התנועות והיתרות שנרשמו לאחר תום יום העסקים הינן על תנאי ובסכומים משוערים'),
+    ]
+    const r = parseGrid(pdfToGrid([page]))
+    expect(r.report.status).toBe('verified')
+    expect(r.txs.map((t) => t.desc)).toEqual(['קניה', 'החזרת חיוב מסיבות טכניות'])
+  })
+  it('זיהוי בנק רק מניסוח חד-משמעי', () => {
+    expect(parseGrid([['ביטוח לאומי, ירושלים'], ['תאריך', 'חובה', 'זכות'], ['01/03/2026', '1', '']]).account.bank).toBeUndefined()
+    expect(parseGrid([["תנועות בחשבון מס' 123-456789"], ['תאריך', 'חובה', 'זכות'], ['01/03/2026', '1', '']]).account).toEqual({ branch: '123', number: '456789' })
   })
 })

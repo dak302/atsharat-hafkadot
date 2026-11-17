@@ -1,7 +1,6 @@
 import { useState } from 'preact/hooks'
 import header from '../assets/header.png'
 import { fmtDate, fmtMoney } from '../lib/grid'
-import { learnFp } from '../lib/fingerprint'
 import { getDecl, putDecl } from '../lib/store'
 import type { Declaration } from '../lib/types'
 import { ArrowRight, Printer } from 'lucide-preact'
@@ -37,8 +36,6 @@ export function PrintView({ id }: { id: string }) {
     window.print()
     document.title = prev
     if (d!.status !== 'done') {
-      // המשק אישר את הקובץ: הטביעה שלו הופכת לדוגמה של הבנק
-      learnFp(d!.account.bank, d!.fp)
       const c = { ...d!, status: 'done' as const }
       putDecl(c)
       setD(c)
