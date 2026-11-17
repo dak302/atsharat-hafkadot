@@ -28,7 +28,10 @@ export function NewDecl() {
     setBusy(true)
     try {
       const r = await readStatement(f)
-      setFpc(checkFp(r.account.bank, r.fp))
+      const c = checkFp(r.fp)
+      // פורמט מוכר קובע את הבנק, גם אם בטקסט של הקובץ זוהה משהו אחר
+      if (c.status !== 'unknown') r.account.bank = c.bank
+      setFpc(c)
       setRes(r)
     } catch (e) {
       setErr((e as Error).message || 'הקובץ לא נקרא.')
@@ -141,21 +144,22 @@ export function NewDecl() {
               <b>לא ניתן לאמת.</b> נקראו {rep.count} תנועות, אבל בקובץ אין עמודת יתרה ולכן אי אפשר לוודא שלא חסרה שורה.
             </Banner>
           )}
-          {rep.status === 'failed' && (
+          {rep.status === 'failed' && rep.count === 0 && <Banner kind="bad">{rep.issues[0]?.msg}</Banner>}
+          {rep.status === 'failed' && rep.count > 0 && (
             <Banner kind="bad">
               <b>הקריאה לא מאומתת.</b> נמצאו {rep.issues.length} בעיות. אין לסמוך על התוצאה בלי לבדוק מול העו"ש.
             </Banner>
           )}
           {fpc?.status === 'mismatch' && (
             <Banner kind="warn">
-              <b>הקובץ שונה מקבצים קודמים של {fpc.bank}.</b> שונה: {fpc.diffs.join(', ')}. כדאי לבקש מהחייל להוריד אותו שוב
-              מאפליקציית הבנק.
+              <b>הטבלה נראית כמו עו"ש של {fpc.bank}, אבל הקובץ נוצר בתוכנה אחרת ({fpc.maker}).</b> ייתכן שעבר עריכה. כדאי לבקש
+              מהחייל להוריד אותו שוב מהבנק.
             </Banner>
           )}
           {res.fileWarnings.map((w) => (
             <Banner kind="warn">{w}</Banner>
           ))}
-          {rep.issues.length > 0 && (
+          {rep.issues.length > 0 && rep.count > 0 && (
             <ul class="issues">
               {rep.issues.slice(0, 12).map((i) => (
                 <li>
@@ -176,10 +180,9 @@ export function NewDecl() {
               <dd>{[res.account.bank, res.account.branch, res.account.number].filter(Boolean).join(' · ') || 'לא זוהה'}</dd>
               <dt>מקור</dt>
               <dd>
-                {fpc?.status === 'match' && `תואם לקבצים קודמים של ${fpc.bank}`}
-                {fpc?.status === 'new' && `קובץ ראשון של ${fpc.bank} במכשיר הזה, יישמר כדוגמה אחרי הפקת ה-PDF`}
-                {fpc?.status === 'mismatch' && <span class="neg">שונה מקבצים קודמים של {fpc.bank}</span>}
-                {fpc?.status === 'nobank' && 'הבנק לא זוהה, אין למה להשוות'}
+                {fpc?.status === 'match' && `פורמט מוכר של ${fpc.bank}`}
+                {fpc?.status === 'mismatch' && <span class="neg">לא תואם לפורמט של {fpc.bank}</span>}
+                {fpc?.status === 'unknown' && 'פורמט שהאפליקציה עוד לא מכירה'}
               </dd>
             </dl>
           )}

@@ -1,4 +1,4 @@
-import { classifyHeader, type Cell } from './grid'
+import { classifyHeader, clean, parseDate, type Cell } from './grid'
 
 export interface PdfItem {
   str: string
@@ -67,16 +67,50 @@ function headerScore(boxes: Box[]): number {
   return kinds.has('date') && amount ? kinds.size : 0
 }
 
+interface Line {
+  y: number
+  cells: string[]
+  kind: 'row' | 'frag' | 'other'
+  above: string[]
+  below: string[]
+}
+
+/** מכניס כל תיבת טקסט לעמודה שהכותרת שלה הכי קרובה אליה */
+function toCells(boxes: Box[], cols: Box[]): string[] {
+  const row: string[] = cols.map(() => '')
+  for (const b of [...boxes].sort((a, b) => b.x0 - a.x0)) {
+    const c = (b.x0 + b.x1) / 2
+    let best = 0
+    let bestD = Infinity
+    cols.forEach((h, i) => {
+      const d = c < h.x0 ? h.x0 - c : c > h.x1 ? c - h.x1 : 0
+      const tie = Math.abs((h.x0 + h.x1) / 2 - c) / 1000
+      if (d + tie < bestD) {
+        bestD = d + tie
+        best = i
+      }
+    })
+    row[best] = row[best] ? row[best] + ' ' + b.text : b.text
+  }
+  return row
+}
+
+/** מרחק מקסימלי (בנקודות) בין שורת תנועה לשורת המשך של התיאור שלה */
+const FRAG_DIST = 30
+
 /**
  * הופך את פריטי הטקסט של PDF (עמוד אחרי עמוד) לטבלה.
  * העמודות נקבעות לפי המיקום האופקי של הכותרות.
+ * בחלק מהבנקים התיאור נשבר לכמה שורות מעל ומתחת לשורת התנועה; שורות כאלה מוצמדות לתנועה הקרובה אליהן.
  */
 export function pdfToGrid(pages: PdfItem[][]): Cell[][] {
   const grid: Cell[][] = []
   let cols: Box[] | null = null
   let visual = false
   for (const page of pages) {
+    const lines: Line[] = []
     for (const line of toLines(page)) {
+      const y = line[0].y
       let boxes = toBoxes(line, visual)
       let score = headerScore(boxes)
       if (!score && !cols) {
@@ -99,23 +133,42 @@ export function pdfToGrid(pages: PdfItem[][]): Cell[][] {
         grid.push([[...boxes].sort((a, b) => b.x0 - a.x0).map((b) => b.text).join(' ')])
         continue
       }
-      // גבולות העמודות: אמצע הרווח בין כותרות סמוכות
-      const row: string[] = cols.map(() => '')
-      for (const b of [...boxes].sort((a, b) => b.x0 - a.x0)) {
-        const c = (b.x0 + b.x1) / 2
-        let best = 0
-        let bestD = Infinity
-        cols.forEach((h, i) => {
-          const d = c < h.x0 ? h.x0 - c : c > h.x1 ? c - h.x1 : 0
-          const tie = Math.abs((h.x0 + h.x1) / 2 - c) / 1000
-          if (d + tie < bestD) {
-            bestD = d + tie
-            best = i
-          }
-        })
-        row[best] = row[best] ? row[best] + ' ' + b.text : b.text
+      const cells = toCells(boxes, cols)
+      const kinds = cols.map((h) => classifyHeader(h.text))
+      const dateCol = kinds.indexOf('date')
+      const descCols = kinds.map((k, i) => (k === 'desc' || k === 'desc2' ? i : -1)).filter((i) => i >= 0)
+      let kind: Line['kind'] = 'other'
+      if (dateCol >= 0 && parseDate(cells[dateCol])) kind = 'row'
+      else if (
+        descCols.length &&
+        cells.every((c, i) => !c || (descCols.includes(i) && clean(c).length <= 45)) &&
+        cells.some((c) => c)
+      )
+        kind = 'frag'
+      lines.push({ y, cells, kind, above: [], below: [] })
+    }
+    // הצמדת שורות המשך לתנועה הקרובה ביותר באותו עמוד
+    const rows = lines.filter((l) => l.kind === 'row')
+    for (const f of lines.filter((l) => l.kind === 'frag')) {
+      let best: Line | null = null
+      for (const r of rows) if (!best || Math.abs(r.y - f.y) < Math.abs(best.y - f.y)) best = r
+      if (!best || Math.abs(best.y - f.y) > FRAG_DIST) {
+        f.kind = 'other'
+        continue
       }
-      grid.push(row)
+      const text = f.cells.filter(Boolean).join(' ')
+      if (f.y > best.y) best.above.push(text)
+      else best.below.push(text)
+      f.kind = 'frag'
+    }
+    const kinds = cols ? cols.map((h) => classifyHeader(h.text)) : []
+    const descCol = kinds.findIndex((k) => k === 'desc' || k === 'desc2')
+    for (const l of lines) {
+      if (l.kind === 'frag') continue
+      if (l.kind === 'row' && descCol >= 0 && (l.above.length || l.below.length)) {
+        l.cells[descCol] = [...l.above, l.cells[descCol], ...l.below].filter(Boolean).join(' ')
+      }
+      grid.push(l.cells)
     }
   }
   return grid

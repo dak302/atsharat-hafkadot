@@ -55,7 +55,8 @@ export function parseDate(v: Cell): string | null {
     // read-excel-file מחזיר תאריכים ב-UTC
     return iso(v.getUTCFullYear(), v.getUTCMonth() + 1, v.getUTCDate())
   }
-  const s = clean(v)
+  // חלק מהבנקים מוסיפים את היום בשבוע: "ב׳ 26/10/26"
+  const s = clean(v).replace(/^[א-ת][׳'"]?\s+|\s+[א-ת][׳'"]?$/g, '')
   let m = /^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/.exec(s)
   if (m) {
     let y = Number(m[3])
@@ -107,21 +108,22 @@ export function findHeader(rows: Cell[][]): { index: number; cols: ColMap } | nu
   return null
 }
 
+// רק ניסוחים חד-משמעיים: "ביטוח לאומי" או כתובת בירושלים לא אמורים לזהות בנק
 const BANKS: [RegExp, string][] = [
-  [/הפועלים/, 'הפועלים'],
-  [/לאומי/, 'לאומי'],
-  [/דיסקונט/, 'דיסקונט'],
-  [/מזרחי|טפחות/, 'מזרחי טפחות'],
-  [/הבינלאומי|בינלאומי הראשון/, 'הבינלאומי'],
+  [/בנק\s*(ה)?פועלים/, 'הפועלים'],
+  [/בנק\s*לאומי/, 'לאומי'],
+  [/בנק\s*דיסקונט|דיסקונט לישראל/, 'דיסקונט'],
+  [/מזרחי.?טפחות/, 'מזרחי טפחות'],
+  [/הבינלאומי הראשון|בנק\s*הבינלאומי/, 'הבינלאומי'],
   [/אוצר החייל/, 'אוצר החייל'],
   [/פאג"?י|פועלי אגודת/, 'פאג"י'],
-  [/מסד/, 'מסד'],
+  [/בנק\s*מסד/, 'מסד'],
   [/וואן זירו|ONE ZERO/i, 'וואן זירו'],
-  [/פפר|PEPPER/i, 'פפר'],
-  [/הדואר/, 'בנק הדואר'],
-  [/יהב/, 'יהב'],
+  [/בנק\s*פפר|PEPPER/i, 'פפר'],
+  [/בנק\s*הדואר/, 'בנק הדואר'],
+  [/בנק\s*יהב/, 'יהב'],
   [/מרכנתיל/, 'מרכנתיל'],
-  [/ירושלים/, 'בנק ירושלים'],
+  [/בנק\s*ירושלים/, 'בנק ירושלים'],
 ]
 
 /** ניסיון לשלוף פרטי חשבון מהשורות שמעל הטבלה. החייל יכול לתקן. */
@@ -138,6 +140,12 @@ export function findAccount(rows: Cell[][]): Account {
   if (full) {
     acct.branch = full[2]
     acct.number = full[3]
+  }
+  // "מס' 123-456789": סניף-חשבון
+  const pair = /מס['׳]?\s*:?\s*(\d{3})-(\d{4,9})(?!\d)/.exec(text)
+  if (pair && !acct.branch) {
+    acct.branch = pair[1]
+    acct.number = pair[2]
   }
   const br = /סניף[^\d\n]{0,12}(\d{1,3})(?!\d)/.exec(text)
   if (br && !acct.branch) acct.branch = br[1]
@@ -170,7 +178,7 @@ export function parseGrid(rows: Cell[][]): ParseResult {
     report: { status: 'failed', count: 0, issues: [{ row: 0, msg }], inferredSigns: 0 },
   })
   const header = findHeader(rows)
-  if (!header) return empty('לא נמצאה שורת כותרות (תאריך, חובה/זכות או סכום). ייתכן שזה לא קובץ עו"ש.')
+  if (!header) return empty('זה לא נראה כמו דף תנועות בחשבון: לא נמצאה טבלה עם תאריך וסכומים. ייתכן שזה ריכוז יתרות או אישור מהבנק. יש לבקש מהחייל את דף התנועות (עו"ש).')
   const { cols } = header
   const account = findAccount(rows.slice(0, header.index))
 
@@ -191,8 +199,10 @@ export function parseGrid(rows: Cell[][]): ParseResult {
       if (hasMoney && !/סה"כ|סה״כ|סך הכל|יתרת פתיחה|יתרה קודמת|יתרת סגירה|מעמוד קודם|לעמוד הבא/.test(txt)) {
         issues.push({ row: line, msg: `שורה עם סכום אך בלי תאריך תקין, לא נקלטה: "${txt.slice(0, 60)}"` })
       } else if (!hasMoney && raw.length && cols.desc != null) {
+        // המשך תיאור: רק טקסט קצר שכולו בעמודת התיאור. הערות ארוכות של הבנק באמצע הטבלה לא נכנסות לתיאור.
         const extra = clean(row[cols.desc])
-        if (extra && extra.length < 80) raw[raw.length - 1].desc += ' ' + extra
+        const onlyDesc = row.every((c, i) => i === cols.desc || i === cols.desc2 || !clean(c))
+        if (extra && onlyDesc && extra.length <= 45) raw[raw.length - 1].desc += ' ' + extra
       }
       continue
     }
@@ -257,13 +267,25 @@ export function parseGrid(rows: Cell[][]): ParseResult {
     }
   }
 
-  const hasBalance = cols.balance != null && ordered.every((r) => r.balance !== undefined)
+  // חלק מהבנקים מציגים יתרה רק בתנועה האחרונה של היום, ובשאר רושמים 0 או משאירים ריק.
+  // תנועה בלי יתרה מצטברת, והבדיקה נעשית בתנועה הבאה שיש לה יתרה: יתרה קודמת + כל הסכומים שביניהן.
+  for (const r of ordered) if (r.balance === 0) r.balance = undefined
+  const anyBalance = cols.balance != null && ordered.some((r) => r.balance !== undefined)
+  const signedColumn = ordered.some((r) => r.amount != null)
   let inferredSigns = 0
   const txs: Tx[] = []
+  let known: number | undefined
+  let before = 0
+  let opening: number | undefined
   ordered.forEach((r, i) => {
     let amount = r.amount ?? r.unsigned!
-    if (hasBalance && i > 0) {
-      const delta = round2(r.balance! - ordered[i - 1].balance!)
+    if (known === undefined) {
+      if (r.balance !== undefined) {
+        known = r.balance
+        opening = round2(r.balance - before - amount)
+      } else before += amount
+    } else if (r.balance !== undefined) {
+      const delta = round2(r.balance - known)
       if (near(delta, amount)) {
         // תקין
       } else if (r.amount == null && near(delta, -amount)) {
@@ -275,22 +297,28 @@ export function parseGrid(rows: Cell[][]): ParseResult {
           msg: `היתרה לא מתאזנת בתאריך ${fmtDate(r.date)}: סכום ${amount}, שינוי ביתרה ${delta}`,
         })
       }
+      known = r.balance
+    } else {
+      if (r.amount == null && signedColumn) {
+        issues.push({ row: r.line, msg: `בתאריך ${fmtDate(r.date)} לא ניתן לקבוע אם זו הפקדה או משיכה, ואין יתרה לבדוק מולה` })
+      }
+      known = round2(known + amount)
     }
     txs.push({ id: i + 1, date: r.date, desc: r.desc, ref: r.ref, amount: round2(amount), balance: r.balance })
   })
 
   // סכומים בלי סימן שלא ניתן היה להכריע לגביהם
-  const signedColumn = ordered.some((r) => r.amount != null)
   if (!signedColumn) {
-    if (!hasBalance) {
+    if (!anyBalance) {
       issues.push({ row: ordered[0].line, msg: 'אין בקובץ סימן חובה/זכות ואין יתרה. לא ניתן לדעת מה הפקדה ומה משיכה.' })
     } else {
       issues.push({ row: ordered[0].line, msg: 'בשורה הראשונה לא ניתן לקבוע אם זו הפקדה או משיכה. יש לבדוק אותה ידנית.' })
     }
   }
 
-  const status = issues.length ? 'failed' : hasBalance ? 'verified' : 'unverified'
-  const opening = hasBalance ? round2(ordered[0].balance! - txs[0].amount) : undefined
+  // תנועות אחרי היתרה האחרונה בקובץ לא נבדקו מול שום יתרה
+  const tailChecked = ordered[ordered.length - 1].balance !== undefined
+  const status = issues.length ? 'failed' : anyBalance && tailChecked ? 'verified' : 'unverified'
   return {
     txs,
     account,
@@ -299,8 +327,8 @@ export function parseGrid(rows: Cell[][]): ParseResult {
       count: txs.length,
       from: txs[0].date,
       to: txs[txs.length - 1].date,
-      opening,
-      closing: hasBalance ? ordered[ordered.length - 1].balance : undefined,
+      opening: anyBalance ? opening : undefined,
+      closing: anyBalance ? known : undefined,
       issues,
       inferredSigns,
     },
@@ -310,6 +338,7 @@ export function parseGrid(rows: Cell[][]): ParseResult {
 function chainErrors(rows: RawRow[]): number {
   let e = 0
   for (let i = 1; i < rows.length; i++) {
+    if (!rows[i].balance || !rows[i - 1].balance) continue
     const a = rows[i].amount ?? rows[i].unsigned ?? 0
     const delta = round2((rows[i].balance ?? 0) - (rows[i - 1].balance ?? 0))
     if (!near(delta, a) && !near(delta, -a)) e++
