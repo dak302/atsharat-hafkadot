@@ -192,3 +192,25 @@ describe('קישור וחותמת', () => {
     await expect(decryptJson(f, 'אחרת')).rejects.toThrow('סיסמה שגויה')
   })
 })
+
+describe('טביעת אצבע של קובץ', async () => {
+  const { checkFp, diffFp } = await import('../src/lib/fingerprint')
+  const base = { kind: 'pdf' as const, producer: 'iText 5.5.13', creator: 'Bank App', header: 'תאריך|תיאור|חובה|זכות|יתרה' }
+  const store = { 'לאומי|pdf': [{ fp: base, n: 3, at: 0 }] }
+  it('מספרי גרסה לא נחשבים שינוי', () => {
+    expect(diffFp(base, { ...base, producer: 'iText 5.5.10' })).toEqual([])
+  })
+  it('מזהה תוכנה אחרת ומבנה אחר', () => {
+    expect(checkFp('לאומי', { ...base, producer: 'iLovePDF' }, store)).toEqual({
+      status: 'mismatch',
+      bank: 'לאומי',
+      diffs: ['התוכנה שיצרה את הקובץ'],
+    })
+    expect(checkFp('לאומי', { ...base, header: 'תאריך|סכום' }, store).status).toBe('mismatch')
+  })
+  it('תואם, בנק חדש, בנק לא מזוהה', () => {
+    expect(checkFp('לאומי', base, store)).toEqual({ status: 'match', bank: 'לאומי', seen: 3 })
+    expect(checkFp('הפועלים', base, store)).toEqual({ status: 'new', bank: 'הפועלים' })
+    expect(checkFp(undefined, base, store)).toEqual({ status: 'nobank' })
+  })
+})
