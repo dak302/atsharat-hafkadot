@@ -1,3 +1,5 @@
+import type { Fingerprint } from './fingerprint'
+
 export type DeclType = 'aid' | 'tashmash'
 
 /** תנועה אחת בעו"ש. amount חיובי = הפקדה (זכות), שלילי = משיכה (חובה). */
@@ -79,6 +81,7 @@ export interface Declaration {
   status: 'draft' | 'sent' | 'returned' | 'done'
   fileName: string
   fileHash: string
+  fp?: Fingerprint
   report: ParseReport
   account: Account
   txs: Tx[]

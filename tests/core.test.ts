@@ -192,3 +192,41 @@ describe('קישור וחותמת', () => {
     await expect(decryptJson(f, 'אחרת')).rejects.toThrow('סיסמה שגויה')
   })
 })
+
+describe('טביעת אצבע של קובץ', async () => {
+  const { checkFp, diffFp } = await import('../src/lib/fingerprint')
+  const base = { kind: 'pdf' as const, producer: 'iText 5.5.13', creator: 'Bank App', header: 'תאריך|תיאור|חובה|זכות|יתרה' }
+  const store = { 'לאומי|pdf': [{ fp: base, n: 3, at: 0 }] }
+  it('מספרי גרסה לא נחשבים שינוי', () => {
+    expect(diffFp(base, { ...base, producer: 'iText 5.5.10' })).toEqual([])
+  })
+  it('מזהה תוכנה אחרת ומבנה אחר', () => {
+    expect(checkFp('לאומי', { ...base, producer: 'iLovePDF' }, store)).toEqual({
+      status: 'mismatch',
+      bank: 'לאומי',
+      diffs: ['התוכנה שיצרה את הקובץ'],
+    })
+    expect(checkFp('לאומי', { ...base, header: 'תאריך|סכום' }, store).status).toBe('mismatch')
+  })
+  it('תואם, בנק חדש, בנק לא מזוהה', () => {
+    expect(checkFp('לאומי', base, store)).toEqual({ status: 'match', bank: 'לאומי', seen: 3 })
+    expect(checkFp('הפועלים', base, store)).toEqual({ status: 'new', bank: 'הפועלים' })
+    expect(checkFp(undefined, base, store)).toEqual({ status: 'nobank' })
+  })
+})
+
+describe('קיבוץ שורות להסבר אחד', async () => {
+  const { groupRows } = await import('../src/lib/rules')
+  it('מאחד לפי מקור וכיוון, שומר סדר', () => {
+    const rows = [
+      { i: 1, d: '2026-03-01', a: 300, s: 'העברה מאמא 123' },
+      { i: 2, d: '2026-03-02', a: -400, s: 'משיכת מזומן כספומט 4421' },
+      { i: 3, d: '2026-04-01', a: 300, s: 'העברה מאמא 456' },
+      { i: 4, d: '2026-04-02', a: -300, s: 'העברה מאמא 789' }, // כיוון אחר
+      { i: 5, d: '2026-04-03', a: -250, s: 'משיכת מזומן כספומט 4421' },
+      { i: 6, d: '2026-04-04', a: 900, s: '' },
+      { i: 7, d: '2026-04-05', a: 900, s: '' },
+    ]
+    expect(groupRows(rows).map((g) => g.rows.map((r) => r.i))).toEqual([[1, 3], [2, 5], [4], [6], [7]])
+  })
+})

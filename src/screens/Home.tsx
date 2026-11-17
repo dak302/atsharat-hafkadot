@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks'
 import { ChevronLeft, Plus } from 'lucide-preact'
 import { go } from '../app'
 import { decodePayload, decryptJson, encryptJson, extractCode } from '../lib/codec'
+import { exportFps, importFps } from '../lib/fingerprint'
 import { applyReturn, importDecls, loadAll } from '../lib/store'
 import type { Declaration, ReturnPayload } from '../lib/types'
 import { Banner, ICON, Page, STATUS_NAME, TYPE_NAME } from '../lib/ui'
@@ -28,7 +29,7 @@ export function Home() {
     const pw = prompt('סיסמה לקובץ הגיבוי, לפחות 6 תווים')
     if (!pw) return
     if (pw.length < 6) return setMsg({ kind: 'bad', text: 'הסיסמה קצרה מדי' })
-    const blob = new Blob([await encryptJson(loadAll(), pw)], { type: 'application/json' })
+    const blob = new Blob([await encryptJson({ decls: loadAll(), fps: exportFps() }, pw)], { type: 'application/json' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
     a.download = `hafkadot-${new Date().toISOString().slice(0, 10)}.hafkadot`
@@ -41,7 +42,9 @@ export function Home() {
     const pw = prompt('סיסמת קובץ הגיבוי')
     if (!pw) return
     try {
-      const n = importDecls(await decryptJson<Declaration[]>(await f.text(), pw))
+      const data = await decryptJson<Declaration[] | { decls: Declaration[]; fps: unknown }>(await f.text(), pw)
+      const n = importDecls(Array.isArray(data) ? data : data.decls ?? [])
+      if (!Array.isArray(data)) importFps(data.fps)
       setList(loadAll())
       setMsg({ kind: 'ok', text: `יובאו ${n} הצהרות` })
     } catch (e) {
@@ -96,7 +99,7 @@ export function Home() {
         <section class="card">
           <p class="muted">
             הנתונים נשמרים רק בדפדפן של המכשיר הזה. כדי להעביר למכשיר אחר או למשק אחר, מייצאים קובץ מוצפן בסיסמה ומייבאים
-            אותו שם.
+            אותו שם. הקובץ כולל גם את הדוגמאות של קבצי הבנקים שאושרו.
           </p>
           <div class="actions">
             <button class="btn" onClick={exportAll} disabled={!list.length}>
