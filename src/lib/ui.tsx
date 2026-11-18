@@ -64,3 +64,20 @@ export async function copy(text: string): Promise<boolean> {
     return false
   }
 }
+
+/** איפה ההצהרה נמצאת בתהליך. מוצג למעלה בכל מסך של המשק. */
+const STEPS = ['העלאת עו"ש', 'בחירת שורות', 'אצל החייל', 'בדיקה', 'הפקת PDF']
+export const STEP_OF: Record<Declaration['status'], number> = { draft: 1, sent: 2, returned: 3, done: 4 }
+
+export function Steps({ at }: { at: number }) {
+  return (
+    <ol class="steps" aria-label="שלבי ההצהרה">
+      {STEPS.map((s, i) => (
+        <li class={i < at ? 'past' : i === at ? 'now' : ''} aria-current={i === at ? 'step' : undefined}>
+          <span class="dot num">{i + 1}</span>
+          <span class="lbl">{s}</span>
+        </li>
+      ))}
+    </ol>
+  )
+}

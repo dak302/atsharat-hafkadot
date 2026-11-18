@@ -6,7 +6,7 @@ import { fmtDate, fmtMoney } from '../lib/grid'
 import { AID_MONTH_LIMIT, AID_ROW_LIMIT, evaluate, monthOf, summarize } from '../lib/rules'
 import { buildSend, deleteDecl, getDecl, payloadOf, putDecl } from '../lib/store'
 import type { Declaration } from '../lib/types'
-import { Amount, appUrl, Banner, copy, ICON, Page, STATUS_NAME, TYPE_NAME, waLink } from '../lib/ui'
+import { Amount, appUrl, Banner, copy, ICON, Page, STATUS_NAME, STEP_OF, Steps, TYPE_NAME, waLink } from '../lib/ui'
 
 const MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
 const monthName = (m: string) => `${MONTHS[Number(m.slice(5)) - 1]} ${m.slice(0, 4)}`
@@ -34,6 +34,7 @@ export function DeclScreen({ id }: { id: string }) {
   }
   return (
     <Page title={d.label || 'הצהרה'} back="#" wide>
+      <Steps at={STEP_OF[d.status]} />
       <p class="sub">
         <span class={'tag ' + d.status}>{STATUS_NAME[d.status]}</span>
         <span>{TYPE_NAME[d.type]}</span>
@@ -105,13 +106,18 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
     <>
       <Banner kind="info">
         {aid
-          ? `בחודש שבו סך ההפקדות, או סך המשיכות, עולה על ${AID_MONTH_LIMIT} ₪, נבחרת כל פעולה מאותו סוג מעל ${AID_ROW_LIMIT} ₪. אפשר לסמן או להסיר כל שורה.`
-          : 'נבחרות הכנסה קבועה מ-250 ₪, הכנסה חד פעמית מ-750 ₪ והוצאות רכב. הוצאות חריגות אחרות מסמנים ידנית.'}
+          ? `בחודש שבו סך ההפקדות, או סך המשיכות, עולה על ${AID_MONTH_LIMIT} ₪, נבחרת כל פעולה מאותו סוג מעל ${AID_ROW_LIMIT} ₪.`
+          : 'נבחרות הכנסה קבועה מ-250 ₪, הכנסה חד פעמית מ-750 ₪ והוצאות רכב. הוצאות חריגות אחרות מסמנים ידנית.'}{' '}
+        לחיצה על שורה מוסיפה או מסירה אותה.
       </Banner>
-      <label class="check small">
-        <input type="checkbox" checked={onlySel} onChange={(e) => setOnlySel(e.currentTarget.checked)} />
-        <span>רק שורות שנבחרו</span>
-      </label>
+      <div class="seg" role="tablist">
+        <button class={!onlySel ? 'on' : ''} onClick={() => setOnlySel(false)}>
+          כל התנועות <span class="num">{rows.length}</span>
+        </button>
+        <button class={onlySel ? 'on' : ''} onClick={() => setOnlySel(true)}>
+          רק מה שנבחר <span class="num">{selected}</span>
+        </button>
+      </div>
       {months.map((m) => {
         const mr = rows.filter((r) => monthOf(r.tx.date) === m.month && (!onlySel || r.include))
         return (
@@ -126,15 +132,23 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
             ) : (
               <div class="ledger">
                 {mr.map((r) => (
-                  <div class={'tx' + (r.include ? ' sel' : '')} key={r.tx.id}>
-                    <label class="pick">
+                  <div
+                    class={'tx' + (r.include ? ' sel' : '')}
+                    key={r.tx.id}
+                    onClick={(e) => {
+                      // לחיצה בכל מקום בשורה מסמנת או מסירה אותה, חוץ מכפתורי קבועה/חד פעמית
+                      if ((e.target as HTMLElement).closest('button, input')) return
+                      toggle(r.tx.id, !r.include, r.auto)
+                    }}
+                  >
+                    <span class="pick">
                       <input
                         type="checkbox"
                         checked={r.include}
                         aria-label={`${fmtDate(r.tx.date)} ${r.tx.desc}`}
                         onChange={(e) => toggle(r.tx.id, e.currentTarget.checked, r.auto)}
                       />
-                    </label>
+                    </span>
                     <span class="date num">{fmtDate(r.tx.date)}</span>
                     <span class="desc">{r.tx.desc || 'ללא תיאור'}</span>
                     <span class="note">
