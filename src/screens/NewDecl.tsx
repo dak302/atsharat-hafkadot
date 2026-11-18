@@ -6,7 +6,7 @@ import { checkFp, type FpCheck } from '../lib/fingerprint'
 import { newId, putDecl } from '../lib/store'
 import type { DeclType, Declaration } from '../lib/types'
 import { Upload } from 'lucide-preact'
-import { Banner, ICON, Page, Stamp } from '../lib/ui'
+import { Banner, ICON, Page, Stamp, Steps } from '../lib/ui'
 
 export function NewDecl() {
   const [type, setType] = useState<DeclType>('aid')
@@ -18,6 +18,7 @@ export function NewDecl() {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [ack, setAck] = useState(false)
+  const [over, setOver] = useState(false)
 
   async function pick(f: File | undefined) {
     setRes(null)
@@ -71,6 +72,7 @@ export function NewDecl() {
 
   return (
     <Page title="הצהרה חדשה" back="#">
+      <Steps at={0} />
       <section class="card">
         <div class="field">
           <span>סוג הבקשה</span>
@@ -100,17 +102,33 @@ export function NewDecl() {
           <span>שם החייל, לזיהוי אצלך בלבד</span>
           <input value={label} onInput={(e) => setLabel(e.currentTarget.value)} placeholder="ישראל ישראלי" />
         </label>
-        <div class="field">
-          <span>קובץ העו"ש, PDF מקורי מהבנק או אקסל</span>
-          <div class="filepick">
-            <label class="btn">
-              <Upload {...ICON} />
-              בחירת קובץ
-              <input type="file" accept=".pdf,.xlsx,.xls,.csv,.html,.htm" hidden onChange={(e) => pick(e.currentTarget.files?.[0])} />
-            </label>
-            <span class="fname">{file?.name ?? ''}</span>
-          </div>
-        </div>
+        <label
+          class={'drop' + (over ? ' over' : '') + (file ? ' has' : '')}
+          onDragOver={(e) => {
+            e.preventDefault()
+            setOver(true)
+          }}
+          onDragLeave={() => setOver(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setOver(false)
+            pick(e.dataTransfer?.files?.[0])
+          }}
+        >
+          <Upload size={22} strokeWidth={1.5} />
+          {file ? (
+            <>
+              <b class="fname">{file.name}</b>
+              <span class="muted">להחלפה לוחצים שוב או גוררים קובץ אחר</span>
+            </>
+          ) : (
+            <>
+              <b>בחירת קובץ העו"ש</b>
+              <span class="muted">או גוררים אותו לכאן. PDF מקורי מהבנק או אקסל</span>
+            </>
+          )}
+          <input type="file" accept=".pdf,.xlsx,.xls,.csv,.html,.htm" hidden onChange={(e) => pick(e.currentTarget.files?.[0])} />
+        </label>
       </section>
 
       {busy && <p class="muted">קורא את הקובץ</p>}
