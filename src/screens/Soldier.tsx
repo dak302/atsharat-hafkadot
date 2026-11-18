@@ -3,8 +3,8 @@ import { decodePayload, encodePayload, lockHash } from '../lib/codec'
 import { fmtDate } from '../lib/grid'
 import { groupRows, type RowGroup } from '../lib/rules'
 import type { Account, Answer, Person, ReturnPayload, SendPayload } from '../lib/types'
-import { Check, Copy, Send } from 'lucide-preact'
-import { Amount, appUrl, Banner, copy, ICON, Page, Stamp, waLink } from '../lib/ui'
+import { Check, CircleCheck, Copy, Lock, Send } from 'lucide-preact'
+import { Amount, appUrl, Banner, copy, ICON, Page, waLink } from '../lib/ui'
 
 const MARITAL = ['נשוי/אה', 'גרוש/ה', 'פרוד/ה', 'אלמן/ה']
 const DECLARE =
@@ -113,9 +113,19 @@ export function Soldier({ code }: { code: string }) {
 
   return (
     <Page title={tm ? 'הצהרה על הוצאות והכנסות חריגות' : 'הצהרה על משיכות והפקדות חריגות'}>
-      <Banner kind="info">
-        המשק סימן {pl.rows.length} פעולות מהעו"ש שדורשות הסבר. כותבים הסבר לכל אחת ושולחים חזרה. התאריך והסכום נעולים.
-      </Banner>
+      <section class="card howto">
+        <p>
+          המשק סימן <b>{pl.rows.length} פעולות</b> מהעו"ש שדורשות הסבר. זה לוקח כמה דקות:
+        </p>
+        <ol>
+          <li>ממלאים את הפרטים</li>
+          <li>כותבים לכל פעולה עבור מה היא, ממי או למי</li>
+          <li>מאשרים ושולחים למשק בוואטסאפ</li>
+        </ol>
+        <p class="muted locknote">
+          <Lock size={14} strokeWidth={1.5} /> התאריכים והסכומים נלקחו מהעו"ש ואי אפשר לשנות אותם
+        </p>
+      </section>
 
       <section class="card">
         <h2>{tm && pl.w === 'owner' ? 'פרטי בעל החשבון' : 'הפרטים שלך'}</h2>
@@ -167,10 +177,10 @@ export function Soldier({ code }: { code: string }) {
           const dep = g.rows[0].a > 0
           const bad = tried && ids.some((i) => !rowOk(i))
           return (
-            <section class={'card entry rowcard' + (bad ? ' bad' : '')} key={g.key}>
+            <section class={'card entry rowcard' + (bad ? ' bad' : '') + (ids.every(rowOk) ? ' done' : '')} key={g.key}>
               <div class="ehead">
                 <span class="gtitle">{g.rows[0].s}</span>
-                <Stamp>נעול</Stamp>
+                {ids.every(rowOk) && <CircleCheck class="okmark" size={18} strokeWidth={1.5} aria-label="הוסבר" />}
               </div>
               <ul class="glist">
                 {g.rows.map((r) => (
@@ -202,12 +212,12 @@ export function Soldier({ code }: { code: string }) {
           const a = draft.ans[r.i] ?? { exp: '' }
           const bad = tried && !rowOk(r.i)
           return (
-            <section class={'card entry rowcard' + (bad ? ' bad' : '') + (pl.fix?.[r.i] ? ' fixme' : '')} key={r.i}>
+            <section class={'card entry rowcard' + (bad ? ' bad' : '') + (pl.fix?.[r.i] ? ' fixme' : '') + (rowOk(r.i) ? ' done' : '')} key={r.i}>
               <div class="ehead">
                 <span class="date num">{fmtDate(r.d)}</span>
                 <span class="kind">{r.a > 0 ? 'הפקדה' : 'משיכה'}</span>
-                <Stamp>נעול</Stamp>
                 <Amount value={r.a} />
+                {rowOk(r.i) && <CircleCheck class="okmark" size={18} strokeWidth={1.5} aria-label="הוסבר" />}
               </div>
               <div class="desc">
                 {r.s}
@@ -233,7 +243,7 @@ export function Soldier({ code }: { code: string }) {
         })
       })}
 
-      <section class="card">
+      <section class="card" id="finish">
         <label class="check">
           <input
             type="checkbox"
@@ -270,6 +280,18 @@ export function Soldier({ code }: { code: string }) {
           </>
         )}
       </section>
+      {!out && (
+        <div class="bar">
+          <div class="bar-in">
+            <span>
+              הוסברו <b>{pl.rows.length - missingRows}</b> מתוך <b>{pl.rows.length}</b>
+            </span>
+            <button class="btn primary" onClick={() => document.getElementById('finish')?.scrollIntoView({ behavior: 'smooth' })}>
+              לאישור ושליחה
+            </button>
+          </div>
+        </div>
+      )}
     </Page>
   )
 }
