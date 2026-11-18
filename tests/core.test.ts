@@ -127,8 +127,8 @@ describe('PDF', () => {
 
 const tx = (id: number, date: string, amount: number, desc = 'x'): Tx => ({ id, date, amount, desc })
 
-describe('כללים', () => {
-  it('סיוע כלכלי: הפקדות ומשיכות נבדקות בנפרד', () => {
+describe('כללים (רמז בלבד, שום דבר לא נבחר אוטומטית)', () => {
+  it('סיוע כלכלי: רמז לפי הפקדות ומשיכות בנפרד, ושום שורה לא מסומנת', () => {
     const txs = [
       tx(1, '2026-03-01', 500),
       tx(2, '2026-03-05', 150),
@@ -139,31 +139,34 @@ describe('כללים', () => {
       tx(7, '2026-04-03', -200), // בדיוק 200, לא מעל
       tx(8, '2026-04-04', -100), // סה"כ משיכות 700
     ]
-    const inc = evaluate('aid', txs, {}).filter((r) => r.include).map((r) => r.tx.id)
-    expect(inc).toEqual([1, 3, 6])
+    const rows = evaluate('aid', txs, {})
+    expect(rows.filter((r) => r.hint).map((r) => r.tx.id)).toEqual([1, 3, 6])
+    expect(rows.some((r) => r.include)).toBe(false)
   })
-  it('שינוי ידני של המשק גובר', () => {
+  it('רק המשק בוחר', () => {
     const txs = [tx(1, '2026-03-01', 700), tx(2, '2026-03-02', -50)]
-    const inc = evaluate('aid', txs, { 1: { include: false }, 2: { include: true } })
-    expect(inc.map((r) => r.include)).toEqual([false, true])
+    const rows = evaluate('aid', txs, { 2: { include: true } })
+    expect(rows.map((r) => r.include)).toEqual([false, true])
   })
-  it('תשמ"ש: קבועה מ-250, חד פעמית מ-750, הוצאות רכב', () => {
+  it('תשמ"ש: רמזים, וסיווג קבועה/חד פעמית רק לפי המשק', () => {
     const txs = [
       tx(1, '2026-03-01', 300, 'העברה מאבא 123'),
       tx(2, '2026-04-01', 300, 'העברה מאבא 456'),
-      tx(3, '2026-03-05', 700, 'bit מיוסי'),
+      tx(3, '2026-03-05', 200, 'bit מיוסי'),
       tx(4, '2026-03-06', 750, 'הפקדת מזומן'),
       tx(5, '2026-03-07', -180, 'פז דלק'),
       tx(6, '2026-03-08', -900, 'שכר דירה'),
     ]
     const rows = evaluate('tashmash', txs, {})
-    expect(rows.filter((r) => r.include).map((r) => r.tx.id)).toEqual([1, 2, 4, 5])
-    expect(rows[0].fixed).toBe(true)
-    expect(rows[2].fixed).toBe(false)
-    // המשק מסמן את 3 כקבועה
-    const rows2 = evaluate('tashmash', txs, { 3: { fixed: true } })
-    expect(rows2[2].include).toBe(true)
-    expect(lockedRows({ type: 'tashmash', txs, overrides: {} }).map((r) => r.k)).toEqual(['f', 'f', 'o', undefined])
+    expect(rows.filter((r) => r.hint).map((r) => r.tx.id)).toEqual([1, 2, 4, 5])
+    expect(rows.every((r) => r.fixed === undefined && !r.include)).toBe(true)
+    const ov = { 1: { include: true, fixed: true }, 4: { include: true, fixed: false }, 2: { include: true }, 5: { include: true } }
+    expect(lockedRows({ type: 'tashmash', txs, overrides: ov }).map((r) => [r.i, r.k])).toEqual([
+      [1, 'f'],
+      [2, undefined],
+      [4, 'o'],
+      [5, undefined],
+    ])
   })
 })
 
