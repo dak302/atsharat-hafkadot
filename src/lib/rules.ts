@@ -9,15 +9,14 @@ const CAR = /דלק|פז |פז$|סונול|דור אלון|אלון |ten |yellow
 
 export interface RowState {
   tx: Tx
-  /** מה שהכללים קבעו */
-  auto: boolean
-  /** הסבר קצר למה השורה נבחרה */
+  /** השורה עומדת בכללי הנוהל. רמז בלבד, לא בחירה */
+  hint: boolean
+  /** הסבר קצר לרמז */
   reason: string
-  /** אחרי שינוי ידני של המשק */
+  /** המשק בחר את השורה */
   include: boolean
-  /** תשמ"ש: הכנסה קבועה */
+  /** תשמ"ש: הכנסה קבועה (true), חד פעמית (false) או שעוד לא סווגה (undefined) */
   fixed?: boolean
-  autoFixed?: boolean
 }
 
 export interface MonthSummary {
@@ -34,7 +33,6 @@ export const monthOf = (d: string) => d.slice(0, 7)
 export function sourceKeyOf(desc: string): string {
   return desc.replace(/[\d/.\-:,'"״׳·]+/g, ' ').replace(/\s+/g, ' ').trim()
 }
-const sourceKey = (tx: Tx) => sourceKeyOf(tx.desc)
 
 export interface RowGroup {
   key: string
@@ -77,6 +75,10 @@ export function summarize(txs: Tx[]): MonthSummary[] {
   return [...map.values()].sort((a, b) => a.month.localeCompare(b.month))
 }
 
+/**
+ * שום שורה לא נבחרת אוטומטית: המשק בוחר בעצמו.
+ * הכללים משמשים רק לרמז (hint) ליד שורות שעומדות בהם.
+ */
 export function evaluate(type: DeclType, txs: Tx[], overrides: Record<number, Override>): RowState[] {
   if (type === 'aid') {
     const months = new Map(summarize(txs).map((m) => [m.month, m]))
@@ -84,37 +86,25 @@ export function evaluate(type: DeclType, txs: Tx[], overrides: Record<number, Ov
       const m = months.get(monthOf(tx.date))!
       const dep = tx.amount > 0
       const over = dep ? m.depositsOver : m.withdrawalsOver
-      const auto = over && Math.abs(tx.amount) > AID_ROW_LIMIT
-      const reason = auto
-        ? `${dep ? 'הפקדות' : 'משיכות'} החודש מעל ${AID_MONTH_LIMIT} ₪ והפעולה מעל ${AID_ROW_LIMIT} ₪`
-        : ''
-      return { tx, auto, reason, include: overrides[tx.id]?.include ?? auto }
+      const hint = over && Math.abs(tx.amount) > AID_ROW_LIMIT
+      const reason = hint ? `מעל ${AID_ROW_LIMIT} ₪, ו${dep ? 'ההפקדות' : 'המשיכות'} בחודש מעל ${AID_MONTH_LIMIT} ₪` : ''
+      return { tx, hint, reason, include: overrides[tx.id]?.include ?? false }
     })
-  }
-  // תשמ"ש: מקור הכנסה שחוזר ביותר מחודש אחד מוצע כ"קבוע"
-  const monthsBySource = new Map<string, Set<string>>()
-  for (const tx of txs) {
-    if (tx.amount <= 0) continue
-    const k = sourceKey(tx)
-    if (!k) continue
-    if (!monthsBySource.has(k)) monthsBySource.set(k, new Set())
-    monthsBySource.get(k)!.add(monthOf(tx.date))
   }
   return txs.map((tx) => {
     const o = overrides[tx.id]
     if (tx.amount > 0) {
-      const autoFixed = (monthsBySource.get(sourceKey(tx))?.size ?? 0) >= 2
-      const fixed = o?.fixed ?? autoFixed
-      const auto = fixed ? tx.amount >= TM_FIXED_MIN : tx.amount >= TM_ONEOFF_MIN
-      const reason = auto
-        ? fixed
-          ? `הכנסה קבועה של ${TM_FIXED_MIN} ₪ ומעלה`
-          : `הכנסה חד פעמית של ${TM_ONEOFF_MIN} ₪ ומעלה`
-        : ''
-      return { tx, auto, reason, include: o?.include ?? auto, fixed, autoFixed }
+      const hint = tx.amount >= TM_FIXED_MIN
+      const reason =
+        tx.amount >= TM_ONEOFF_MIN
+          ? `מעל ${TM_ONEOFF_MIN} ₪`
+          : hint
+            ? `מעל ${TM_FIXED_MIN} ₪, רלוונטי אם קבועה`
+            : ''
+      return { tx, hint, reason, include: o?.include ?? false, fixed: o?.fixed }
     }
-    const auto = CAR.test(tx.desc)
-    return { tx, auto, reason: auto ? 'הוצאת רכב (דלק/ביטוח/מוסך)' : '', include: o?.include ?? auto }
+    const hint = CAR.test(tx.desc)
+    return { tx, hint, reason: hint ? 'הוצאת רכב' : '', include: o?.include ?? false }
   })
 }
 
@@ -123,7 +113,7 @@ export function lockedRows(d: Pick<Declaration, 'type' | 'txs' | 'overrides'>): 
     .filter((r) => r.include)
     .map((r) => {
       const row: LockedRow = { i: r.tx.id, d: r.tx.date, a: r.tx.amount, s: r.tx.desc.slice(0, 60) }
-      if (d.type === 'tashmash' && r.tx.amount > 0) row.k = r.fixed ? 'f' : 'o'
+      if (d.type === 'tashmash' && r.tx.amount > 0 && r.fixed !== undefined) row.k = r.fixed ? 'f' : 'o'
       return row
     })
 }

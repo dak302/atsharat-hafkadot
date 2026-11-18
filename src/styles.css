@@ -142,13 +142,6 @@ dl { margin-top: 0; }
 /* ---------- הפנקס ---------- */
 .mhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 24px; padding: 0 4px 8px; }
 .mhead h3 { font-size: 17px; line-height: 24px; font-weight: 600; margin-inline-end: auto; }
-.meter { display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 20px; color: var(--ink2); }
-.meter .num { color: var(--ink); }
-.meter .track { position: relative; width: 72px; height: 4px; border-radius: 2px; background: var(--line-strong); }
-.meter .track i { position: absolute; inset-block: 0; inset-inline-start: 0; border-radius: 2px; background: var(--ink3); }
-.meter .track b { position: absolute; top: -4px; width: 1px; height: 12px; background: var(--ink); }
-.meter.over .track i { background: var(--accent); }
-.meter.over .mstate { color: var(--accent); font-weight: 600; }
 
 .ledger { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .tx { position: relative; display: grid; align-items: center; column-gap: 12px; min-height: 44px; padding: 8px 16px; color: var(--ink2);
@@ -288,3 +281,8 @@ dl { margin-top: 0; }
 .okmark { color: var(--pos); flex: none; }
 .ehead .okmark { margin-inline-start: 4px; }
 .gtitle + .okmark { margin-inline-start: auto; }
+
+/* רמז לשורות שעומדות בכללי הנוהל. לא בחירה */
+.hintdot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); vertical-align: middle; margin-inline-end: 4px; }
+.hinttag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; line-height: 16px; color: var(--accent); }
+.hinttag .hintdot { margin: 0; }
