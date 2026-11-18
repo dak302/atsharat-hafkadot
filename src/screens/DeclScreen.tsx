@@ -54,26 +54,6 @@ export function DeclScreen({ id }: { id: string }) {
 
 type Upd = (fn: (d: Declaration) => void) => void
 
-/** סכום חודשי מול רף ה-600. הפס מתמלא עד הרף ומעבר לו, והקו מסמן את הרף עצמו. */
-function Meter(props: { label: string; sum: number; over: boolean; limit: boolean }) {
-  const scale = Math.max(props.sum, AID_MONTH_LIMIT * 2)
-  return (
-    <span class={'meter' + (props.limit && props.over ? ' over' : '')}>
-      <span>{props.label}</span>
-      <span class="num">{fmtMoney(props.sum)}</span>
-      {props.limit && (
-        <>
-          <span class="track" aria-hidden="true">
-            <i style={{ width: (props.sum / scale) * 100 + '%' }} />
-            <b style={{ insetInlineStart: (AID_MONTH_LIMIT / scale) * 100 + '%' }} />
-          </span>
-          <span class="mstate">{props.over ? `מעל ${AID_MONTH_LIMIT}` : `עד ${AID_MONTH_LIMIT}`}</span>
-        </>
-      )}
-    </span>
-  )
-}
-
 function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: Declaration) => void }) {
   const [onlySel, setOnlySel] = useState(false)
   const rows = useMemo(() => evaluate(d.type, d.txs, d.overrides), [d])
@@ -81,20 +61,14 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
   const selected = rows.filter((r) => r.include).length
   const aid = d.type === 'aid'
 
-  const toggle = (id: number, include: boolean, auto: boolean) =>
+  const hinted = rows.filter((r) => r.hint).length
+  const toggle = (id: number, include: boolean) =>
     update((x) => {
-      const o = { ...x.overrides[id] }
-      if (include === auto) delete o.include
-      else o.include = include
-      x.overrides[id] = o
+      x.overrides[id] = { ...x.overrides[id], include }
     })
-  const setFixed = (id: number, fixed: boolean, autoFixed: boolean) =>
+  const setFixed = (id: number, fixed: boolean) =>
     update((x) => {
-      const o = { ...x.overrides[id] }
-      if (fixed === autoFixed) delete o.fixed
-      else o.fixed = fixed
-      delete o.include // הסיווג השתנה, חוזרים להחלטת הכללים
-      x.overrides[id] = o
+      x.overrides[id] = { ...x.overrides[id], fixed }
     })
   async function send() {
     const c = structuredClone(d)
@@ -105,10 +79,16 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
   return (
     <>
       <Banner kind="info">
-        {aid
-          ? `בחודש שבו סך ההפקדות, או סך המשיכות, עולה על ${AID_MONTH_LIMIT} ₪, נבחרת כל פעולה מאותו סוג מעל ${AID_ROW_LIMIT} ₪.`
-          : 'נבחרות הכנסה קבועה מ-250 ₪, הכנסה חד פעמית מ-750 ₪ והוצאות רכב. הוצאות חריגות אחרות מסמנים ידנית.'}{' '}
-        לחיצה על שורה מוסיפה או מסירה אותה.
+        מסמנים את השורות שדורשות הסבר מהחייל. לחיצה על שורה מסמנת או מסירה אותה.{' '}
+        {hinted > 0 && (
+          <>
+            <span class="hintdot" aria-hidden="true" /> {hinted} שורות עומדות בכללי הנוהל
+            {aid
+              ? ` (מעל ${AID_ROW_LIMIT} ₪ בחודש שההפקדות או המשיכות בו מעל ${AID_MONTH_LIMIT} ₪)`
+              : ' (הכנסה מ-250 ₪, או הוצאת רכב)'}
+            , ומסומנות ברמז. ההחלטה שלך.
+          </>
+        )}
       </Banner>
       <div class="seg" role="tablist">
         <button class={!onlySel ? 'on' : ''} onClick={() => setOnlySel(false)}>
@@ -124,11 +104,9 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
           <section class="month" key={m.month}>
             <header class="mhead">
               <h3>{monthName(m.month)}</h3>
-              <Meter label="הפקדות" sum={m.deposits} over={m.depositsOver} limit={aid} />
-              <Meter label="משיכות" sum={m.withdrawals} over={m.withdrawalsOver} limit={aid} />
             </header>
             {mr.length === 0 ? (
-              <p class="muted">אין שורות נבחרות בחודש הזה</p>
+              <p class="muted">לא סומנו שורות בחודש הזה</p>
             ) : (
               <div class="ledger">
                 {mr.map((r) => (
@@ -138,7 +116,7 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
                     onClick={(e) => {
                       // לחיצה בכל מקום בשורה מסמנת או מסירה אותה, חוץ מכפתורי קבועה/חד פעמית
                       if ((e.target as HTMLElement).closest('button, input')) return
-                      toggle(r.tx.id, !r.include, r.auto)
+                      toggle(r.tx.id, !r.include)
                     }}
                   >
                     <span class="pick">
@@ -146,20 +124,24 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
                         type="checkbox"
                         checked={r.include}
                         aria-label={`${fmtDate(r.tx.date)} ${r.tx.desc}`}
-                        onChange={(e) => toggle(r.tx.id, e.currentTarget.checked, r.auto)}
+                        onChange={(e) => toggle(r.tx.id, e.currentTarget.checked)}
                       />
                     </span>
                     <span class="date num">{fmtDate(r.tx.date)}</span>
                     <span class="desc">{r.tx.desc || 'ללא תיאור'}</span>
                     <span class="note">
-                      {!aid && r.include && r.auto && r.tx.amount < 0 && <span>הוצאת רכב</span>}
-                      {r.include !== r.auto && <span class="manual">{r.include ? 'נוסף ידנית' : 'הוסר ידנית'}</span>}
-                      {!aid && r.tx.amount > 0 && (
-                        <span class="seg small">
-                          <button class={r.fixed ? 'on' : ''} onClick={() => setFixed(r.tx.id, true, !!r.autoFixed)}>
+                      {r.hint && !r.include && (
+                        <span class="hinttag">
+                          <span class="hintdot" aria-hidden="true" />
+                          {r.reason}
+                        </span>
+                      )}
+                      {!aid && r.include && r.tx.amount > 0 && (
+                        <span class="seg small" aria-label="סוג ההכנסה">
+                          <button class={r.fixed === true ? 'on' : ''} onClick={() => setFixed(r.tx.id, true)}>
                             קבועה
                           </button>
-                          <button class={!r.fixed ? 'on' : ''} onClick={() => setFixed(r.tx.id, false, !!r.autoFixed)}>
+                          <button class={r.fixed === false ? 'on' : ''} onClick={() => setFixed(r.tx.id, false)}>
                             חד פעמית
                           </button>
                         </span>
