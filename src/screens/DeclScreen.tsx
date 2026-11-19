@@ -6,6 +6,7 @@ import { fmtDate, fmtMoney } from '../lib/grid'
 import { AID_MONTH_LIMIT, AID_ROW_LIMIT, evaluate, monthOf, summarize } from '../lib/rules'
 import { buildSend, deleteDecl, getDecl, payloadOf, putDecl } from '../lib/store'
 import type { Declaration } from '../lib/types'
+import { count } from '../lib/plural'
 import { Amount, appUrl, Banner, copy, ICON, Page, STATUS_NAME, STEP_OF, Steps, TYPE_NAME, waLink } from '../lib/ui'
 
 const MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
@@ -128,7 +129,7 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
                       />
                     </span>
                     <span class="date num">{fmtDate(r.tx.date)}</span>
-                    <span class="desc">{r.tx.desc || 'ללא תיאור'}</span>
+                    <span class="desc" title={r.tx.desc}>{r.tx.desc || 'ללא תיאור'}</span>
                     <span class="note">
                       {r.hint && !r.include && (
                         <span class="hinttag">
@@ -187,7 +188,7 @@ function Sent({ d, update }: { d: Declaration; update: Upd }) {
           שליחה ל{who}, סבב {d.round}
         </h2>
         <p>
-          ננעלו <b class="num">{d.sent!.rows.length}</b> שורות. {who} יכול לכתוב הסברים בלבד, והתאריכים והסכומים נשארים כפי
+          {d.sent!.rows.length === 1 ? 'ננעלה שורה אחת' : `ננעלו ${d.sent!.rows.length} שורות`}. {who} יכול לכתוב הסברים בלבד, והתאריכים והסכומים נשארים כפי
           שהם אצלך.
         </p>
         <label class="field">
@@ -236,7 +237,7 @@ function Returned({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: 
     <>
       {disputes > 0 && (
         <Banner kind="warn">
-          <b>{disputes} שורות סומנו כשגויות.</b> בודקים מול העו"ש, ואז מסירים את השורה בעריכת שורות או מחזירים לתיקון.
+          <b>{disputes === 1 ? 'שורה אחת סומנה כשגויה' : `${disputes} שורות סומנו כשגויות`}.</b> בודקים מול העו"ש, ואז מסירים את השורה בעריכת שורות או מחזירים לתיקון.
         </Banner>
       )}
       <section class="card">
@@ -299,7 +300,7 @@ function Returned({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: 
       <div class="bar">
         <div class="bar-in">
           <span>
-            <b>{rows.length}</b> שורות עם הסבר
+            <b>{count(rows.length, 'שורה אחת', 'שורות')}</b> עם הסבר
           </span>
           <span class="actions">
             {d.status === 'returned' && (

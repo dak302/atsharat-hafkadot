@@ -1,3 +1,4 @@
+import { shorten } from './plural'
 import type { DeclType, Declaration, LockedRow, Override, Tx } from './types'
 
 export const AID_MONTH_LIMIT = 600
@@ -112,7 +113,7 @@ export function lockedRows(d: Pick<Declaration, 'type' | 'txs' | 'overrides'>): 
   return evaluate(d.type, d.txs, d.overrides)
     .filter((r) => r.include)
     .map((r) => {
-      const row: LockedRow = { i: r.tx.id, d: r.tx.date, a: r.tx.amount, s: r.tx.desc.slice(0, 60) }
+      const row: LockedRow = { i: r.tx.id, d: r.tx.date, a: r.tx.amount, s: shorten(r.tx.desc) }
       if (d.type === 'tashmash' && r.tx.amount > 0 && r.fixed !== undefined) row.k = r.fixed ? 'f' : 'o'
       return row
     })
