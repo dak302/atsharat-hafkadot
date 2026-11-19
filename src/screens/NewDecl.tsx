@@ -8,7 +8,7 @@ import type { DeclType, Declaration } from '../lib/types'
 import { Upload } from 'lucide-preact'
 import { count } from '../lib/plural'
 import { celebrate } from '../lib/celebrate'
-import { Banner, ICON, Page, Stamp, Steps } from '../lib/ui'
+import { Banner, ICON, Page, ReadSkeleton, Stamp, Steps } from '../lib/ui'
 
 export function NewDecl() {
   const [type, setType] = useState<DeclType>('aid')
@@ -134,7 +134,7 @@ export function NewDecl() {
         </label>
       </section>
 
-      {busy && <p class="muted">קורא את הקובץ</p>}
+      {busy && <ReadSkeleton />}
       {err && <Banner kind="bad">{err}</Banner>}
 
       {res && rep && (

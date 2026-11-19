@@ -331,3 +331,10 @@ button, .btn, .seg, .pick, .iconbtn, .steps { user-select: none; -webkit-user-se
   .donecheck path { animation: none; stroke-dashoffset: 0; }
 }
 @media print { .celebrate, .sound { display: none !important; } }
+
+/* ---------- שלד בזמן טעינה ---------- */
+.skel { display: grid; gap: 12px; }
+.card.skel > * + * { margin-top: 0; }
+.sk { display: block; max-width: 100%; background: #e6e6ea; animation: sk-pulse 1.1s ease-in-out infinite alternate; }
+@keyframes sk-pulse { to { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .sk { animation: none; } }

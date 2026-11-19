@@ -3,7 +3,7 @@ import { decodePayload } from '../lib/codec'
 import { applyReturn } from '../lib/store'
 import { celebrate } from '../lib/celebrate'
 import type { ReturnPayload } from '../lib/types'
-import { Banner, Page } from '../lib/ui'
+import { Banner, CardsSkeleton, Page } from '../lib/ui'
 
 export function ReturnScreen({ code }: { code: string }) {
   const [err, setErr] = useState('')
@@ -21,7 +21,7 @@ export function ReturnScreen({ code }: { code: string }) {
   }, [code])
   return (
     <Page title="קליטת תשובה" back="#">
-      {err ? <Banner kind="bad">{err}</Banner> : <p class="muted">בודק את התשובה</p>}
+      {err ? <Banner kind="bad">{err}</Banner> : <CardsSkeleton n={3} />}
     </Page>
   )
 }

@@ -133,3 +133,46 @@ export function Celebration() {
     </div>
   )
 }
+
+/** קו אפור במקום תוכן שעוד נטען */
+export function Sk(props: { w?: string; h?: number; r?: number }) {
+  return <span class="sk" style={{ width: props.w ?? '100%', height: (props.h ?? 16) + 'px', borderRadius: (props.r ?? 6) + 'px' }} />
+}
+
+/** שלד של תוצאת קריאת העו"ש, בזמן שהקובץ נקרא */
+export function ReadSkeleton() {
+  return (
+    <section class="card skel" aria-busy="true" aria-label="קורא את הקובץ">
+      <Sk w="35%" h={20} />
+      <div class="recon">
+        <div><Sk w="72px" h={12} /><Sk w="96px" h={24} /></div>
+        <div><Sk w="72px" h={12} /><Sk w="96px" h={24} /></div>
+        <div><Sk w="72px" h={12} /><Sk w="96px" h={24} /></div>
+      </div>
+      <Sk w="70%" />
+      <Sk w="55%" />
+      <Sk h={44} r={8} />
+    </section>
+  )
+}
+
+/** שלד של כרטיסים (מסך החייל ומסך הבדיקה של המשק) */
+export function CardsSkeleton(props: { n?: number }) {
+  return (
+    <div class="skel" aria-busy="true" aria-label="טוען">
+      {Array.from({ length: props.n ?? 3 }, (_, i) => (
+        <section class="card entry" key={i}>
+          <div class="ehead">
+            <Sk w="88px" />
+            <Sk w="64px" />
+            <span style={{ marginInlineStart: 'auto' }}>
+              <Sk w="80px" />
+            </span>
+          </div>
+          <Sk w="60%" h={12} />
+          <Sk h={64} r={8} />
+        </section>
+      ))}
+    </div>
+  )
+}

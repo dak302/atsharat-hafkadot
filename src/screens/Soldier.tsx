@@ -6,7 +6,7 @@ import { groupRows, type RowGroup } from '../lib/rules'
 import { count } from '../lib/plural'
 import type { Account, Answer, Person, ReturnPayload, SendPayload } from '../lib/types'
 import { Check, Copy, Lock, Send } from 'lucide-preact'
-import { Amount, appUrl, Banner, copy, DoneCheck, ICON, Page, waLink } from '../lib/ui'
+import { Amount, appUrl, Banner, CardsSkeleton, copy, DoneCheck, ICON, Page, Sk, waLink } from '../lib/ui'
 
 const MARITAL = ['נשוי/אה', 'גרוש/ה', 'פרוד/ה', 'אלמן/ה']
 const DECLARE =
@@ -81,7 +81,17 @@ export function Soldier({ code }: { code: string }) {
       </Page>
     )
   }
-  if (!pl) return <Page title="הצהרת הפקדות">{''}</Page>
+  if (!pl)
+    return (
+      <Page title="הצהרת הפקדות">
+        <section class="card skel" aria-busy="true">
+          <Sk w="80%" />
+          <Sk w="50%" />
+          <Sk w="60%" />
+        </section>
+        <CardsSkeleton n={3} />
+      </Page>
+    )
 
   const tm = pl.t === 'tashmash'
   const p = draft.p
