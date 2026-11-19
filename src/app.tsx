@@ -5,6 +5,7 @@ import { DeclScreen } from './screens/DeclScreen'
 import { Soldier } from './screens/Soldier'
 import { ReturnScreen } from './screens/ReturnScreen'
 import { PrintView } from './screens/PrintView'
+import { Celebration } from './lib/ui'
 
 export function go(hash: string) {
   location.hash = hash
@@ -24,6 +25,15 @@ function useHash(): string {
 }
 
 export function App() {
+  return (
+    <>
+      <Screen />
+      <Celebration />
+    </>
+  )
+}
+
+function Screen() {
   const h = useHash()
   if (h.startsWith('#s=')) return <Soldier code={h.slice(3)} />
   if (h.startsWith('#r=')) return <ReturnScreen code={h.slice(3)} />

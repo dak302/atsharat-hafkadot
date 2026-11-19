@@ -7,6 +7,7 @@ import { AID_MONTH_LIMIT, AID_ROW_LIMIT, evaluate, monthOf, summarize } from '..
 import { buildSend, deleteDecl, getDecl, payloadOf, putDecl } from '../lib/store'
 import type { Declaration } from '../lib/types'
 import { count } from '../lib/plural'
+import { celebrate } from '../lib/celebrate'
 import { Amount, appUrl, Banner, copy, ICON, Page, STATUS_NAME, STEP_OF, Steps, TYPE_NAME, waLink } from '../lib/ui'
 
 const MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
@@ -75,6 +76,7 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
     const c = structuredClone(d)
     await buildSend(c)
     setD(c)
+    celebrate('ננעל, אפשר לשלוח לחייל')
   }
 
   return (
@@ -232,6 +234,7 @@ function Returned({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: 
     const c = structuredClone(d)
     await buildSend(c)
     setD(c)
+    celebrate('מוכן להחזרה לחייל')
   }
   return (
     <>

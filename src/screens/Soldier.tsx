@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
+import { celebrate, tick } from '../lib/celebrate'
 import { decodePayload, encodePayload, lockHash } from '../lib/codec'
 import { fmtDate } from '../lib/grid'
 import { groupRows, type RowGroup } from '../lib/rules'
 import { count } from '../lib/plural'
 import type { Account, Answer, Person, ReturnPayload, SendPayload } from '../lib/types'
-import { Check, CircleCheck, Copy, Lock, Send } from 'lucide-preact'
-import { Amount, appUrl, Banner, copy, ICON, Page, waLink } from '../lib/ui'
+import { Check, Copy, Lock, Send } from 'lucide-preact'
+import { Amount, appUrl, Banner, CardsSkeleton, copy, DoneCheck, ICON, Page, Sk, waLink } from '../lib/ui'
 
 const MARITAL = ['נשוי/אה', 'גרוש/ה', 'פרוד/ה', 'אלמן/ה']
 const DECLARE =
@@ -26,6 +27,14 @@ export function Soldier({ code }: { code: string }) {
   const [tried, setTried] = useState(false)
   const [out, setOut] = useState('')
   const [copied, setCopied] = useState(false)
+  /** כרטיסים שכבר קיבלו צליל "בוצע", כדי לא לצלצל שוב על אותו כרטיס */
+  const ticked = useRef(new Set<string>())
+  const done = (key: string, ok: boolean) => {
+    if (ok && !ticked.current.has(key)) {
+      ticked.current.add(key)
+      tick()
+    }
+  }
   const key = pl ? `hafkadot.draft.${pl.id}.${pl.r}` : ''
 
   useEffect(() => {
@@ -72,7 +81,17 @@ export function Soldier({ code }: { code: string }) {
       </Page>
     )
   }
-  if (!pl) return <Page title="הצהרת הפקדות">{''}</Page>
+  if (!pl)
+    return (
+      <Page title="הצהרת הפקדות">
+        <section class="card skel" aria-busy="true">
+          <Sk w="80%" />
+          <Sk w="50%" />
+          <Sk w="60%" />
+        </section>
+        <CardsSkeleton n={3} />
+      </Page>
+    )
 
   const tm = pl.t === 'tashmash'
   const p = draft.p
@@ -110,6 +129,7 @@ export function Soldier({ code }: { code: string }) {
     }
     const ret: ReturnPayload = { v: 1, id: pl!.id, r: pl!.r, h: pl!.h, p, ans }
     setOut(appUrl('#r=' + (await encodePayload(ret))))
+    celebrate('סיימת, נשאר רק לשלוח למשק')
   }
 
   return (
@@ -181,7 +201,7 @@ export function Soldier({ code }: { code: string }) {
             <section class={'card entry rowcard' + (bad ? ' bad' : '') + (ids.every(rowOk) ? ' done' : '')} key={g.key}>
               <div class="ehead">
                 <span class="gtitle">{g.rows[0].s}</span>
-                {ids.every(rowOk) && <CircleCheck class="okmark" size={18} strokeWidth={1.5} aria-label="הוסבר" />}
+                {ids.every(rowOk) && <DoneCheck label="הוסבר" />}
               </div>
               <ul class="glist">
                 {g.rows.map((r) => (
@@ -202,6 +222,7 @@ export function Soldier({ code }: { code: string }) {
                 placeholder="עבור מה, ממי או למי, קבוע או חד פעמי"
                 value={exp}
                 onInput={(e) => setMany(ids, e.currentTarget.value)}
+                onBlur={() => done(g.key, ids.every(rowOk))}
               />
               <button class="link" onClick={() => splitGroup(g.key)}>
                 הסבר נפרד לכל פעולה
@@ -218,7 +239,7 @@ export function Soldier({ code }: { code: string }) {
                 <span class="date num">{fmtDate(r.d)}</span>
                 <span class="kind">{r.a > 0 ? 'הפקדה' : 'משיכה'}</span>
                 <Amount value={r.a} />
-                {rowOk(r.i) && <CircleCheck class="okmark" size={18} strokeWidth={1.5} aria-label="הוסבר" />}
+                {rowOk(r.i) && <DoneCheck label="הוסבר" />}
               </div>
               <div class="desc">
                 {r.s}
@@ -231,6 +252,7 @@ export function Soldier({ code }: { code: string }) {
                 placeholder="עבור מה, ממי או למי, קבוע או חד פעמי"
                 value={a.exp}
                 onInput={(e) => setA(r.i, { exp: e.currentTarget.value })}
+                onBlur={() => done(String(r.i), !!rowOk(r.i))}
               />
               <label class="check small">
                 <input type="checkbox" checked={!!a.dispute} onChange={(e) => setA(r.i, { dispute: e.currentTarget.checked })} />

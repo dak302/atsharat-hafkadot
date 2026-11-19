@@ -5,6 +5,7 @@ import { decodePayload, decryptJson, encryptJson, extractCode } from '../lib/cod
 import { applyReturn, importDecls, loadAll } from '../lib/store'
 import type { Declaration, ReturnPayload } from '../lib/types'
 import { count } from '../lib/plural'
+import { celebrate } from '../lib/celebrate'
 import { Banner, ICON, Page, TYPE_NAME } from '../lib/ui'
 
 /** קבוצות לפי מה שצריך לעשות עכשיו, מהדחוף לפחות דחוף */
@@ -27,7 +28,10 @@ export function Home() {
     if (!c) return setMsg({ kind: 'bad', text: 'לא זוהה קישור תשובה. יש להדביק את הקישור המלא שהחייל שלח.' })
     try {
       const res = applyReturn(await decodePayload<ReturnPayload>(c))
-      if (res.ok) go('#d/' + res.decl.id)
+      if (res.ok) {
+        celebrate('התשובה התקבלה')
+        go('#d/' + res.decl.id)
+      }
       else setMsg({ kind: 'bad', text: res.error })
     } catch {
       setMsg({ kind: 'bad', text: 'הקישור פגום או חתוך. יש לבקש מהחייל לשלוח שוב.' })

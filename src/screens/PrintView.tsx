@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks'
 import header from '../assets/header.png'
 import { fmtDate, fmtMoney } from '../lib/grid'
 import { getDecl, putDecl } from '../lib/store'
+import { celebrate } from '../lib/celebrate'
 import type { Declaration } from '../lib/types'
 import { ArrowRight, Printer } from 'lucide-preact'
 import { Banner, ICON } from '../lib/ui'
@@ -35,6 +36,7 @@ export function PrintView({ id }: { id: string }) {
     document.title = `הצהרת הפקדות - ${p.name ?? d!.label}`
     window.print()
     document.title = prev
+    celebrate('הטופס הופק')
     if (d!.status !== 'done') {
       const c = { ...d!, status: 'done' as const }
       putDecl(c)
