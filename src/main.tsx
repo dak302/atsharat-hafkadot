@@ -7,6 +7,8 @@ import '@fontsource/assistant/latin-600.css'
 import '@fontsource/ibm-plex-mono/latin-400.css'
 import '@fontsource/ibm-plex-mono/latin-500.css'
 import { App } from './app'
+import { armAudio } from './lib/celebrate'
 import './styles.css'
 
+armAudio()
 render(<App />, document.getElementById('app')!)

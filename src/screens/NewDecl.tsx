@@ -8,7 +8,7 @@ import type { DeclType, Declaration } from '../lib/types'
 import { Upload } from 'lucide-preact'
 import { count } from '../lib/plural'
 import { celebrate } from '../lib/celebrate'
-import { Banner, ICON, Page, ReadSkeleton, Stamp, Steps } from '../lib/ui'
+import { Banner, ICON, OkField, Page, ReadSkeleton, Stamp, Steps } from '../lib/ui'
 
 export function NewDecl() {
   const [type, setType] = useState<DeclType>('aid')
@@ -103,7 +103,9 @@ export function NewDecl() {
         )}
         <label class="field">
           <span>שם החייל, לזיהוי אצלך בלבד</span>
-          <input value={label} onInput={(e) => setLabel(e.currentTarget.value)} placeholder="ישראל ישראלי" />
+          <OkField ok={label.trim().length >= 2}>
+            <input value={label} onInput={(e) => setLabel(e.currentTarget.value)} placeholder="ישראל ישראלי" />
+          </OkField>
         </label>
         <label
           class={'drop' + (over ? ' over' : '') + (file ? ' has' : '')}

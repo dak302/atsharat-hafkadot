@@ -35,29 +35,62 @@ export function setSound(on: boolean) {
 
 let ctx: AudioContext | null = null
 
+function audio(): AudioContext | null {
+  const AC = window.AudioContext || (window as any).webkitAudioContext
+  if (!AC) return null
+  ctx ??= new AC()
+  return ctx
+}
+
+/**
+ * אייפון ודפדפנים אחרים משמיעים צליל רק אם השמע נפתח בתוך נגיעה של המשתמש.
+ * בנגיעה הראשונה בדף פותחים את השמע ומשמיעים שקט, וכך כל צליל אחר כך עובד.
+ */
+export function armAudio() {
+  const unlock = () => {
+    try {
+      const c = audio()
+      if (!c) return
+      if (c.state === 'suspended') void c.resume()
+      const b = c.createBuffer(1, 1, 22050)
+      const src = c.createBufferSource()
+      src.buffer = b
+      src.connect(c.destination)
+      src.start(0)
+    } catch {
+      /* אין שמע */
+    }
+    if (ctx?.state === 'running') ['pointerdown', 'touchend', 'keydown'].forEach((t) => removeEventListener(t, unlock, true))
+  }
+  ;['pointerdown', 'touchend', 'keydown'].forEach((t) => addEventListener(t, unlock, true))
+}
+
 /** צליל קצר שנוצר בקוד, בלי קובץ שמע: שני צלילים עולים לסיום שלב, צליל אחד רך לסיום פריט */
 function chime(size: Size) {
   if (!soundOn()) return
   try {
-    const AC = window.AudioContext || (window as any).webkitAudioContext
-    if (!AC) return
-    ctx ??= new AC()
-    if (ctx.state === 'suspended') void ctx.resume()
-    const notes = size === 'big' ? [880, 1318.5] : [1046.5]
-    const now = ctx.currentTime
+    const c = audio()
+    if (!c) return
+    if (c.state === 'suspended') void c.resume()
+    // סיום שלב: שלושה צלילים עולים (דו-מי-סול). סיום פריט: צליל אחד רך
+    const notes = size === 'big' ? [1046.5, 1318.5, 1568] : [1318.5]
+    const now = c.currentTime
     notes.forEach((freq, i) => {
-      const t = now + i * 0.11
-      const osc = ctx!.createOscillator()
-      const gain = ctx!.createGain()
-      osc.type = 'sine'
-      osc.frequency.value = freq
-      const peak = size === 'big' ? 0.18 : 0.1
-      gain.gain.setValueAtTime(0.0001, t)
-      gain.gain.exponentialRampToValueAtTime(peak, t + 0.012)
-      gain.gain.exponentialRampToValueAtTime(0.0001, t + (size === 'big' ? 0.45 : 0.25))
-      osc.connect(gain).connect(ctx!.destination)
-      osc.start(t)
-      osc.stop(t + 0.5)
+      const t = now + i * 0.085
+      const len = size === 'big' ? (i === notes.length - 1 ? 0.6 : 0.3) : 0.22
+      const peak = size === 'big' ? 0.16 : 0.09
+      for (const [type, mul, vol] of [['sine', 1, 1], ['triangle', 2, 0.18]] as const) {
+        const osc = c.createOscillator()
+        const gain = c.createGain()
+        osc.type = type
+        osc.frequency.value = freq * mul
+        gain.gain.setValueAtTime(0.0001, t)
+        gain.gain.exponentialRampToValueAtTime(peak * vol, t + 0.01)
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + len)
+        osc.connect(gain).connect(c.destination)
+        osc.start(t)
+        osc.stop(t + len + 0.05)
+      }
     })
   } catch {
     /* אין שמע במכשיר */

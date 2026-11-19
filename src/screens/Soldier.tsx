@@ -6,7 +6,7 @@ import { groupRows, type RowGroup } from '../lib/rules'
 import { count } from '../lib/plural'
 import type { Account, Answer, Person, ReturnPayload, SendPayload } from '../lib/types'
 import { Check, Copy, Lock, Send } from 'lucide-preact'
-import { Amount, appUrl, Banner, CardsSkeleton, copy, DoneCheck, ICON, Page, Sk, waLink } from '../lib/ui'
+import { Amount, appUrl, Banner, CardsSkeleton, copy, DoneCheck, ICON, OkField, Page, Sk, waLink } from '../lib/ui'
 
 const MARITAL = ['נשוי/אה', 'גרוש/ה', 'פרוד/ה', 'אלמן/ה']
 const DECLARE =
@@ -152,19 +152,25 @@ export function Soldier({ code }: { code: string }) {
         <h2>{tm && pl.w === 'owner' ? 'פרטי בעל החשבון' : 'הפרטים שלך'}</h2>
         <label class="field">
           <span>שם מלא</span>
-          <input value={p.name ?? ''} onInput={(e) => setP({ name: e.currentTarget.value })} autocomplete="name" />
+          <OkField ok={(p.name ?? '').trim().length >= 2}>
+            <input value={p.name ?? ''} onInput={(e) => setP({ name: e.currentTarget.value })} onBlur={() => done('name', (p.name ?? '').trim().length >= 2)} autocomplete="name" />
+          </OkField>
         </label>
         {!tm && (
           <label class="field">
             <span>מספר אישי</span>
-            <input value={p.personalNum ?? ''} onInput={(e) => setP({ personalNum: e.currentTarget.value.replace(/\D/g, '') })} inputMode="numeric" dir="ltr" />
+            <OkField ok={digits(p.personalNum)}>
+              <input value={p.personalNum ?? ''} onInput={(e) => setP({ personalNum: e.currentTarget.value.replace(/\D/g, '') })} onBlur={() => done('pn', digits(p.personalNum))} inputMode="numeric" dir="ltr" />
+            </OkField>
           </label>
         )}
         {tm && (
           <>
             <label class="field">
               <span>מספר ת"ז של בעל החשבון</span>
-              <input value={p.idNum ?? ''} onInput={(e) => setP({ idNum: e.currentTarget.value.replace(/\D/g, '') })} inputMode="numeric" dir="ltr" />
+              <OkField ok={digits(p.idNum)}>
+                <input value={p.idNum ?? ''} onInput={(e) => setP({ idNum: e.currentTarget.value.replace(/\D/g, '') })} onBlur={() => done('id', digits(p.idNum))} inputMode="numeric" dir="ltr" />
+              </OkField>
             </label>
             <div class="field">
               <span>מצב משפחתי</span>
@@ -178,11 +184,15 @@ export function Soldier({ code }: { code: string }) {
             </div>
             <label class="field">
               <span>שם החייל/ת</span>
-              <input value={p.soldierName ?? ''} onInput={(e) => setP({ soldierName: e.currentTarget.value })} />
+              <OkField ok={(p.soldierName ?? '').trim().length >= 2}>
+                <input value={p.soldierName ?? ''} onInput={(e) => setP({ soldierName: e.currentTarget.value })} onBlur={() => done('sname', (p.soldierName ?? '').trim().length >= 2)} />
+              </OkField>
             </label>
             <label class="field">
               <span>מספר אישי של החייל/ת</span>
-              <input value={p.soldierNum ?? ''} onInput={(e) => setP({ soldierNum: e.currentTarget.value.replace(/\D/g, '') })} inputMode="numeric" dir="ltr" />
+              <OkField ok={digits(p.soldierNum)}>
+                <input value={p.soldierNum ?? ''} onInput={(e) => setP({ soldierNum: e.currentTarget.value.replace(/\D/g, '') })} onBlur={() => done('snum', digits(p.soldierNum))} inputMode="numeric" dir="ltr" />
+              </OkField>
             </label>
             <AcctFields title="חשבון הבנק" a={p.acct} set={(x) => setAcct('acct', x)} />
             <AcctFields title="חשבון בנק נוסף (אם יש)" a={p.acct2} set={(x) => setAcct('acct2', x)} />
@@ -292,11 +302,18 @@ export function Soldier({ code }: { code: string }) {
         ) : (
           <>
             <Banner kind="ok">מוכן לשליחה. על הטופס המודפס חותמים אצל המשק</Banner>
-            <a class="btn primary block" href={waLink(`הצהרת הפקדות, התשובה שלי:\n${out}`)} target="_blank" rel="noopener">
+            <a class="btn primary block" href={waLink(`הצהרת הפקדות, התשובה שלי:\n${out}`)} target="_blank" rel="noopener" onClick={() => celebrate('נשלח למשק')}>
               <Send {...ICON} />
               שליחה למשק בוואטסאפ
             </a>
-            <button class="btn block" onClick={async () => setCopied(await copy(out))}>
+            <button
+              class="btn block"
+              onClick={async () => {
+                const ok = await copy(out)
+                setCopied(ok)
+                if (ok) celebrate('הקישור הועתק')
+              }}
+            >
               {copied ? <Check {...ICON} /> : <Copy {...ICON} />}
               {copied ? 'הועתק' : 'העתקת קישור תשובה'}
             </button>
