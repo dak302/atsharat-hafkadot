@@ -141,7 +141,7 @@ export function findAccount(rows: Cell[][]): Account {
     acct.branch = full[2]
     acct.number = full[3]
   }
-  // "מס' 698-243082": סניף-חשבון
+  // "מס' 123-456789": סניף-חשבון
   const pair = /מס['׳]?\s*:?\s*(\d{3})-(\d{4,9})(?!\d)/.exec(text)
   if (pair && !acct.branch) {
     acct.branch = pair[1]
