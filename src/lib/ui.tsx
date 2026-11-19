@@ -1,5 +1,7 @@
 import type { ComponentChildren } from 'preact'
-import { ArrowRight } from 'lucide-preact'
+import { useEffect, useState } from 'preact/hooks'
+import { ArrowRight, Volume2, VolumeX } from 'lucide-preact'
+import { onCelebrate, setSound, soundOn } from './celebrate'
 import { fmtMoney } from './grid'
 import type { Declaration } from './types'
 
@@ -26,6 +28,7 @@ export function Page(props: { title: string; back?: string; children: ComponentC
             </a>
           )}
           <h1>{props.title}</h1>
+          <SoundToggle />
         </div>
       </header>
       <main class={'page' + w}>{props.children}</main>
@@ -79,5 +82,54 @@ export function Steps({ at }: { at: number }) {
         </li>
       ))}
     </ol>
+  )
+}
+
+/** וי ירוק בעיגול שמצטייר כשהוא מופיע */
+export function DoneCheck(props: { size?: number; label?: string }) {
+  const n = props.size ?? 20
+  return (
+    <svg class="donecheck" width={n} height={n} viewBox="0 0 24 24" role="img" aria-label={props.label ?? 'בוצע'}>
+      <circle cx="12" cy="12" r="12" />
+      <path d="M7 12.5l3.2 3.2L17 9" pathLength={1} />
+    </svg>
+  )
+}
+
+/** כפתור השתקה בכותרת. ההעדפה נשמרת רק בדפדפן הזה */
+function SoundToggle() {
+  const [on, setOn] = useState(soundOn)
+  return (
+    <button
+      class="iconbtn sound"
+      aria-label={on ? 'השתקת צלילים' : 'הפעלת צלילים'}
+      aria-pressed={!on}
+      onClick={() => {
+        setSound(!on)
+        setOn(!on)
+      }}
+    >
+      {on ? <Volume2 {...ICON} /> : <VolumeX {...ICON} />}
+    </button>
+  )
+}
+
+/** מסך הצלחה קצר: עיגול ירוק עם וי שמצטייר וטקסט, ונעלם לבד אחרי כשנייה וחצי */
+export function Celebration() {
+  const [e, setE] = useState<{ text: string; id: number } | null>(null)
+  useEffect(() => onCelebrate(setE), [])
+  useEffect(() => {
+    if (!e) return
+    const t = setTimeout(() => setE(null), 1500)
+    return () => clearTimeout(t)
+  }, [e])
+  if (!e) return null
+  return (
+    <div class="celebrate" key={e.id} role="status" aria-live="polite">
+      <div class="celebrate-in">
+        <DoneCheck size={88} label="" />
+        <p>{e.text}</p>
+      </div>
+    </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { decodePayload } from '../lib/codec'
 import { applyReturn } from '../lib/store'
+import { celebrate } from '../lib/celebrate'
 import type { ReturnPayload } from '../lib/types'
 import { Banner, Page } from '../lib/ui'
 
@@ -10,7 +11,10 @@ export function ReturnScreen({ code }: { code: string }) {
     decodePayload<ReturnPayload>(code)
       .then((p) => {
         const res = applyReturn(p)
-        if (res.ok) location.replace(location.pathname + '#d/' + res.decl.id)
+        if (res.ok) {
+          celebrate('התשובה התקבלה')
+          location.replace(location.pathname + '#d/' + res.decl.id)
+        }
         else setErr(res.error)
       })
       .catch(() => setErr('הקישור פגום או חתוך. בקש מהחייל לשלוח שוב.'))

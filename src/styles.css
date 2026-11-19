@@ -304,3 +304,30 @@ button, .btn, .seg, .pick, .iconbtn, .steps { user-select: none; -webkit-user-se
 /* משוב לחיצה גם בכפתורי הבחירה */
 .seg button { transition: background-color 150ms var(--ease), color 150ms var(--ease), transform 160ms var(--ease); }
 .seg button:active { transform: scale(0.97); }
+
+/* ---------- משוב הצלחה: וי ירוק שמצטייר ---------- */
+.donecheck { flex: none; }
+.donecheck circle { fill: var(--pos); }
+.donecheck path { fill: none; stroke: #fff; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw-check 320ms var(--ease) 120ms forwards; }
+.donecheck { animation: pop-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.ehead .donecheck { margin-inline-start: 4px; }
+.gtitle + .donecheck { margin-inline-start: auto; }
+@keyframes draw-check { to { stroke-dashoffset: 0; } }
+@keyframes pop-in { from { transform: scale(0.6); opacity: 0; } }
+
+.celebrate { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; pointer-events: none; background: rgb(247 247 248 / 0.72); animation: celebrate-life 1500ms var(--ease) both; }
+.celebrate-in { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 24px 32px; }
+.celebrate-in .donecheck { animation-duration: 420ms; }
+.celebrate-in .donecheck path { stroke-width: 2.2; animation-duration: 420ms; animation-delay: 180ms; }
+.celebrate-in p { margin: 0; font-size: 20px; line-height: 28px; font-weight: 600; color: var(--ink); text-align: center; animation: rise-in 300ms var(--ease) 200ms both; }
+@keyframes rise-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes celebrate-life { 0% { opacity: 0; } 10% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+.sound { margin-inline-start: auto; margin-inline-end: -8px; border: 0; background: none; cursor: pointer; padding: 0; }
+.sound[aria-pressed="true"] { color: var(--ink3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .donecheck, .celebrate-in .donecheck, .celebrate-in p { animation: none; }
+  .donecheck path { animation: none; stroke-dashoffset: 0; }
+}
+@media print { .celebrate, .sound { display: none !important; } }

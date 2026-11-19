@@ -7,6 +7,7 @@ import { newId, putDecl } from '../lib/store'
 import type { DeclType, Declaration } from '../lib/types'
 import { Upload } from 'lucide-preact'
 import { count } from '../lib/plural'
+import { celebrate } from '../lib/celebrate'
 import { Banner, ICON, Page, Stamp, Steps } from '../lib/ui'
 
 export function NewDecl() {
@@ -35,6 +36,7 @@ export function NewDecl() {
       if (c.status !== 'unknown') r.account.bank = c.bank
       setFpc(c)
       setRes(r)
+      if (r.report.status === 'verified' && !r.fileWarnings.length && c.status !== 'mismatch') celebrate('הקובץ נקרא ואומת')
     } catch (e) {
       setErr((e as Error).message || 'הקובץ לא נקרא.')
     }
