@@ -198,11 +198,25 @@ function Sent({ d, update }: { d: Declaration; update: Upd }) {
           <input value={phone} onInput={(e) => setPhone(e.currentTarget.value)} inputMode="tel" dir="ltr" placeholder="050-0000000" />
         </label>
         <div class="actions">
-          <a class={'btn primary' + (link ? '' : ' disabled')} href={link ? waLink(text, phone) : undefined} target="_blank" rel="noopener">
+          <a
+            class={'btn primary' + (link ? '' : ' disabled')}
+            href={link ? waLink(text, phone) : undefined}
+            target="_blank"
+            rel="noopener"
+            onClick={() => celebrate('נשלח לחייל')}
+          >
             <Send {...ICON} />
             שליחה בוואטסאפ
           </a>
-          <button class="btn" disabled={!link} onClick={async () => setCopied(await copy(link))}>
+          <button
+            class="btn"
+            disabled={!link}
+            onClick={async () => {
+              const ok = await copy(link)
+              setCopied(ok)
+              if (ok) celebrate('הקישור הועתק')
+            }}
+          >
             {copied ? <Check {...ICON} /> : <Copy {...ICON} />}
             {copied ? 'הועתק' : 'העתקת קישור'}
           </button>

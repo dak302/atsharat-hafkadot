@@ -176,3 +176,13 @@ export function CardsSkeleton(props: { n?: number }) {
     </div>
   )
 }
+
+/** שדה עם וי ירוק בסוף כשהערך תקין */
+export function OkField(props: { ok: boolean; children: ComponentChildren }) {
+  return (
+    <span class={'okfield' + (props.ok ? ' ok' : '')}>
+      {props.children}
+      {props.ok && <DoneCheck size={18} label="תקין" />}
+    </span>
+  )
+}
