@@ -82,7 +82,7 @@ export function applyReturn(p: ReturnPayload): ReturnCheck {
     const a = got[i]
     return !a || typeof a.exp !== 'string' || (!a.exp.trim() && !a.dispute)
   })
-  if (missing.length) return { ok: false, error: `חסר הסבר ל-${missing.length} שורות. התשובה נדחתה.` }
+  if (missing.length) return { ok: false, error: `חסר הסבר ${missing.length === 1 ? 'לשורה אחת' : `ל-${missing.length} שורות`}. התשובה נדחתה.` }
   d.answers = {}
   for (const i of ids) {
     const a = got[i]

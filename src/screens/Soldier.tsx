@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { decodePayload, encodePayload, lockHash } from '../lib/codec'
 import { fmtDate } from '../lib/grid'
 import { groupRows, type RowGroup } from '../lib/rules'
+import { count } from '../lib/plural'
 import type { Account, Answer, Person, ReturnPayload, SendPayload } from '../lib/types'
 import { Check, CircleCheck, Copy, Lock, Send } from 'lucide-preact'
 import { Amount, appUrl, Banner, copy, ICON, Page, waLink } from '../lib/ui'
@@ -115,7 +116,7 @@ export function Soldier({ code }: { code: string }) {
     <Page title={tm ? 'הצהרה על הוצאות והכנסות חריגות' : 'הצהרה על משיכות והפקדות חריגות'}>
       <section class="card howto">
         <p>
-          המשק סימן <b>{pl.rows.length} פעולות</b> מהעו"ש שדורשות הסבר. זה לוקח כמה דקות:
+          המשק סימן <b>{count(pl.rows.length, 'פעולה אחת', 'פעולות')}</b> מהעו"ש {pl.rows.length === 1 ? 'שדורשת' : 'שדורשות'} הסבר. זה לוקח כמה דקות:
         </p>
         <ol>
           <li>ממלאים את הפרטים</li>
@@ -169,7 +170,7 @@ export function Soldier({ code }: { code: string }) {
         )}
       </section>
 
-      <h2>{pl.rows.length} פעולות להסבר</h2>
+      <h2>{count(pl.rows.length, 'פעולה אחת להסבר', 'פעולות להסבר')}</h2>
       {groupRows(pl.rows).map((g) => {
         if (!isSplit(g)) {
           const ids = g.rows.map((r) => r.i)
@@ -258,7 +259,7 @@ export function Soldier({ code }: { code: string }) {
         {tried && !ready && (
           <Banner kind="bad">
             {missingP.length > 0 && <div>חסר: {missingP.join(', ')}</div>}
-            {missingRows > 0 && <div>חסר הסבר ל-{missingRows} פעולות</div>}
+            {missingRows > 0 && <div>חסר הסבר ל{missingRows === 1 ? 'פעולה אחת' : `-${missingRows} פעולות`}</div>}
             {!agree && <div>יש לאשר את ההצהרה</div>}
           </Banner>
         )}
@@ -286,7 +287,7 @@ export function Soldier({ code }: { code: string }) {
             <span>
               הוסברו <b>{pl.rows.length - missingRows}</b> מתוך <b>{pl.rows.length}</b>
             </span>
-            <button class="btn primary" onClick={() => document.getElementById('finish')?.scrollIntoView({ behavior: 'smooth' })}>
+            <button class="btn primary" onClick={() => document.getElementById('finish')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })}>
               לאישור ושליחה
             </button>
           </div>

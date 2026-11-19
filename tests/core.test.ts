@@ -267,3 +267,19 @@ describe('מבנים מקבצים אמיתיים (נתונים מומצאים)',
     expect(parseGrid([["תנועות בחשבון מס' 123-456789"], ['תאריך', 'חובה', 'זכות'], ['01/03/2026', '1', '']]).account).toEqual({ branch: '123', number: '456789' })
   })
 })
+
+describe('ספירה וקיצור', async () => {
+  const { count, shorten } = await import('../src/lib/plural')
+  it('שורה אחת / שורות', () => {
+    expect(count(1, 'שורה אחת', 'שורות')).toBe('שורה אחת')
+    expect(count(3, 'שורה אחת', 'שורות')).toBe('3 שורות')
+  })
+  it('קיצור במקום רווח', () => {
+    const s = 'העברה מחשבון 12-345-678901 לחשבון 20-563-12345678 עבור שכר דירה חודש אוקטובר ועוד הרבה מילים כאן'
+    const out = shorten(s, 60)
+    expect(out.endsWith('…')).toBe(true)
+    expect(s.startsWith(out.slice(0, -1))).toBe(true)
+    expect(s[out.length - 1]).toBe(' ')
+    expect(shorten('קצר', 60)).toBe('קצר')
+  })
+})

@@ -57,16 +57,12 @@ h2 { font-size: 17px; line-height: 24px; font-weight: 600; }
   background: var(--card); color: var(--ink); font: 600 16px/20px var(--sans); cursor: pointer; text-decoration: none; white-space: nowrap;
   transition: background-color 150ms var(--ease), border-color 150ms var(--ease), transform 150ms var(--ease), opacity 150ms var(--ease);
 }
-.btn:hover { background: var(--raised); }
-.btn:active { transform: scale(0.98); }
+.btn:active { transform: scale(0.97); }
 .btn.primary { background: var(--btn); color: var(--btn-ink); border-color: transparent; }
-.btn.primary:hover { opacity: 0.9; }
 .btn.block { width: 100%; height: 44px; }
 .btn:disabled, .btn.disabled { opacity: 0.4; pointer-events: none; }
 .iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; color: var(--ink2); margin-inline-start: -8px; transition: background-color 150ms var(--ease); }
-.iconbtn:hover { background: var(--raised); }
 .link { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 8px 0; color: var(--ink2); font: 400 13px/20px var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-.link:hover { color: var(--ink); }
 .link.neg { color: var(--neg); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .actions > input { flex: 1; min-width: 0; }
@@ -74,7 +70,7 @@ h2 { font-size: 17px; line-height: 24px; font-weight: 600; }
 
 input:not([type]), input[type="text"], textarea {
   width: 100%; height: 40px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line-strong);
-  background: var(--card); color: var(--ink); font: 400 15px/22px var(--sans);
+  background: var(--card); color: var(--ink); font: 400 16px/22px var(--sans);
   transition: border-color 150ms var(--ease);
 }
 textarea { height: auto; min-height: 64px; resize: vertical; display: block; }
@@ -129,7 +125,6 @@ dl { margin-top: 0; }
 .list { list-style: none; padding: 0; margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
 .list li + li { border-top: 1px solid var(--line); }
 .list a { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 16px; text-decoration: none; color: var(--ink); transition: background-color 150ms var(--ease); }
-.list a:hover { background: var(--raised); }
 .list b { display: block; }
 .list small { display: block; color: var(--ink2); font-size: 13px; line-height: 20px; }
 .list svg { color: var(--ink3); }
@@ -248,7 +243,8 @@ dl { margin-top: 0; }
   .printwrap { background: none; padding: 0; min-height: 0; }
   .sheet { width: auto; min-height: 0; margin: 0; overflow: visible; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+/* תנועה מופחתת: בלי הקטנה בלחיצה, אבל שינויי צבע נשארים כי הם משוב */
+@media (prefers-reduced-motion: reduce) { .btn:active, .seg button:active { transform: none; } }
 
 /* ---------- שלבים, קבוצות, אזור העלאה ---------- */
 .steps { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; counter-reset: s; overflow-x: auto; }
@@ -269,13 +265,12 @@ dl { margin-top: 0; }
 .locknote { display: flex; align-items: center; gap: 8px; }
 
 .drop { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 128px; padding: 24px 16px; border: 1.5px dashed var(--line-strong); border-radius: 12px; background: var(--bg); color: var(--ink2); text-align: center; cursor: pointer; transition: border-color 150ms var(--ease), background-color 150ms var(--ease); }
-.drop:hover, .drop.over { border-color: var(--accent); background: var(--sel); }
+.drop.over { border-color: var(--accent); background: var(--sel); }
 .drop.has { border-style: solid; }
 .drop b { color: var(--ink); }
 .drop .fname { direction: ltr; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .tx { cursor: pointer; }
-.tx:hover { background: var(--raised); }
 .tx.sel { background: var(--sel); }
 .rowcard.done { border-color: var(--line); }
 .okmark { color: var(--pos); flex: none; }
@@ -286,3 +281,26 @@ dl { margin-top: 0; }
 .hintdot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); vertical-align: middle; margin-inline-end: 4px; }
 .hinttag { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; line-height: 16px; color: var(--accent); }
 .hinttag .hintdot { margin: 0; }
+
+/* ---------- טלפון: שיתחושה תהיה של אפליקציה ולא של אתר ---------- */
+html { -webkit-tap-highlight-color: transparent; }
+button, a, label, [role="button"], .tx { touch-action: manipulation; }
+button, .btn, .seg, .pick, .iconbtn, .steps { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+/* משוב בלחיצה גם בטלפון, שאין לו hover */
+.iconbtn:active, .list a:active, .tx:active { background: var(--raised); }
+.tx.sel:active { background: var(--sel); }
+.appbar { padding-top: env(safe-area-inset-top, 0px); }
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { background: var(--raised); }
+  .btn.primary:hover { background: var(--btn); opacity: 0.9; }
+  .iconbtn:hover { background: var(--raised); }
+  .link:hover { color: var(--ink); }
+  .list a:hover { background: var(--raised); }
+  .tx:hover { background: var(--raised); }
+  .tx.sel:hover { background: var(--sel); }
+  .drop:hover { border-color: var(--accent); background: var(--sel); }
+}
+
+/* משוב לחיצה גם בכפתורי הבחירה */
+.seg button { transition: background-color 150ms var(--ease), color 150ms var(--ease), transform 160ms var(--ease); }
+.seg button:active { transform: scale(0.97); }

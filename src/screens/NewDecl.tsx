@@ -6,6 +6,7 @@ import { checkFp, type FpCheck } from '../lib/fingerprint'
 import { newId, putDecl } from '../lib/store'
 import type { DeclType, Declaration } from '../lib/types'
 import { Upload } from 'lucide-preact'
+import { count } from '../lib/plural'
 import { Banner, ICON, Page, Stamp, Steps } from '../lib/ui'
 
 export function NewDecl() {
@@ -165,7 +166,7 @@ export function NewDecl() {
           {rep.status === 'failed' && rep.count === 0 && <Banner kind="bad">{rep.issues[0]?.msg}</Banner>}
           {rep.status === 'failed' && rep.count > 0 && (
             <Banner kind="bad">
-              <b>הקריאה לא מאומתת.</b> נמצאו {rep.issues.length} בעיות. אין לסמוך על התוצאה בלי לבדוק מול העו"ש.
+              <b>הקריאה לא מאומתת.</b> נמצאו {count(rep.issues.length, 'בעיה אחת', 'בעיות')}. אין לסמוך על התוצאה בלי לבדוק מול העו"ש.
             </Banner>
           )}
           {fpc?.status === 'mismatch' && (

@@ -4,6 +4,7 @@ import { go } from '../app'
 import { decodePayload, decryptJson, encryptJson, extractCode } from '../lib/codec'
 import { applyReturn, importDecls, loadAll } from '../lib/store'
 import type { Declaration, ReturnPayload } from '../lib/types'
+import { count } from '../lib/plural'
 import { Banner, ICON, Page, TYPE_NAME } from '../lib/ui'
 
 /** קבוצות לפי מה שצריך לעשות עכשיו, מהדחוף לפחות דחוף */
@@ -53,7 +54,7 @@ export function Home() {
       const data = await decryptJson<Declaration[] | { decls: Declaration[] }>(await f.text(), pw)
       const n = importDecls(Array.isArray(data) ? data : data.decls ?? [])
       setList(loadAll())
-      setMsg({ kind: 'ok', text: `יובאו ${n} הצהרות` })
+      setMsg({ kind: 'ok', text: `יובאו ${count(n, 'הצהרה אחת', 'הצהרות')}` })
     } catch (e) {
       setMsg({ kind: 'bad', text: (e as Error).message })
     }

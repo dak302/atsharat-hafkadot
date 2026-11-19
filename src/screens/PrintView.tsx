@@ -92,7 +92,7 @@ export function PrintView({ id }: { id: string }) {
           הדפסה או שמירה כ-PDF
         </button>
         <span class="muted">בחלון ההדפסה בוחרים שמירה כ-PDF, גודל A4, בלי כותרות עליונות ותחתונות</span>
-        {disputes > 0 && <Banner kind="warn">{disputes} שורות עדיין מסומנות כשגויות</Banner>}
+        {disputes > 0 && <Banner kind="warn">{disputes === 1 ? 'שורה אחת עדיין מסומנת כשגויה' : `${disputes} שורות עדיין מסומנות כשגויות`}</Banner>}
         {d.report.status !== 'verified' && <Banner kind="warn">קריאת העו"ש של ההצהרה הזו לא אומתה מול היתרות</Banner>}
       </div>
 
