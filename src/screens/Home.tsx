@@ -130,8 +130,11 @@ export function Home() {
       <section class="card">
         <h2>חייל שלח תשובה?</h2>
         <p class="muted">לוחצים על הקישור שהוא שלח בוואטסאפ, והתשובה נקלטת לבד. אם זה לא עובד, מדביקים אותו כאן</p>
+        <label class="fieldlabel" for="reply">
+          קישור התשובה מהחייל
+        </label>
         <div class="actions">
-          <input value={code} onInput={(e) => setCode(e.currentTarget.value)} placeholder="קישור תשובה" dir="ltr" />
+          <input id="reply" value={code} onInput={(e) => setCode(e.currentTarget.value)} placeholder="קישור תשובה" dir="ltr" />
           <button class="btn" onClick={paste} disabled={!code.trim()}>
             קליטה
           </button>
