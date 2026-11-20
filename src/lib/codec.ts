@@ -30,10 +30,40 @@ export async function encodePayload(obj: unknown): Promise<string> {
   return 'j' + b64url(raw)
 }
 
+/** הגבלת גודל אחרי פענוח: קישור אמיתי הוא כמה קילובייטים. קישור זדוני דחוס יכול להתנפח לגיגות ולתקוע את הדפדפן */
+export const MAX_DECODED = 2_000_000
+
+async function inflateCapped(bytes: Uint8Array): Promise<Uint8Array> {
+  const reader = new Blob([bytes as BlobPart])
+    .stream()
+    .pipeThrough(new DecompressionStream('deflate-raw') as unknown as ReadableWritablePair<Uint8Array, Uint8Array>)
+    .getReader()
+  const parts: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.length
+    if (total > MAX_DECODED) {
+      await reader.cancel()
+      throw new Error('הקישור גדול מדי')
+    }
+    parts.push(value)
+  }
+  const out = new Uint8Array(total)
+  let at = 0
+  for (const p of parts) {
+    out.set(p, at)
+    at += p.length
+  }
+  return out
+}
+
 export async function decodePayload<T>(s: string): Promise<T> {
   const kind = s[0]
+  if (s.length > MAX_DECODED) throw new Error('הקישור גדול מדי')
   const bytes = unb64url(s.slice(1))
-  if (kind === 'z') return JSON.parse(dec.decode(await pipe(bytes, new DecompressionStream('deflate-raw'))))
+  if (kind === 'z') return JSON.parse(dec.decode(await inflateCapped(bytes)))
   if (kind === 'j') return JSON.parse(dec.decode(bytes))
   throw new Error('קוד לא תקין')
 }

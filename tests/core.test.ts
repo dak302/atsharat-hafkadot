@@ -283,3 +283,16 @@ describe('ספירה וקיצור', async () => {
     expect(shorten('קצר', 60)).toBe('קצר')
   })
 })
+
+describe('קישור זדוני גדול מדי', async () => {
+  const { decodePayload, MAX_DECODED } = await import('../src/lib/codec')
+  it('קישור שמתנפח מעל המגבלה נדחה', async () => {
+    const big = new TextEncoder().encode('"' + 'א'.repeat(MAX_DECODED) + '"')
+    const comp = new Uint8Array(await new Response(new Blob([big]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer())
+    let bin = ''
+    comp.forEach((c) => (bin += String.fromCharCode(c)))
+    const code = 'z' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+    expect(code.length).toBeLessThan(20000)
+    await expect(decodePayload(code)).rejects.toThrow('גדול מדי')
+  })
+})
