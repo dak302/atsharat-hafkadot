@@ -15,4 +15,10 @@ const csp = (): Plugin => ({
 export default defineConfig({
   base: './',
   plugins: [preact(), csp()],
+  build: {
+    rollupOptions: {
+      // האפליקציה, ודף שמסביר עליה
+      input: { main: 'index.html', about: 'about.html' },
+    },
+  },
 })

@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact'
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { ArrowRight, Volume2, VolumeX } from 'lucide-preact'
 import { onCelebrate, setSound, soundOn } from './celebrate'
 import { fmtMoney } from './grid'
@@ -122,7 +122,32 @@ function SoundToggle() {
   )
 }
 
-/** מסך הצלחה קצר: עיגול ירוק עם וי שמצטייר וטקסט, ונעלם לבד אחרי כשנייה וחצי */
+/** המודול התלת-ממדי נטען פעם אחת, ברקע, אחרי הנגיעה הראשונה בדף */
+type Check3D = typeof import('./check3d')
+let check3d: Check3D | null = null
+let loading: Promise<Check3D> | null = null
+export function preloadCheck3D() {
+  if (loading || matchMedia('(prefers-reduced-motion: reduce)').matches) return
+  loading = import('./check3d').then((m) => (check3d = m.webglOk() ? m : null) ?? m)
+}
+
+/** וי ירוק גדול: תלת-ממדי כשאפשר, ואחרת הווי השטוח */
+function BigCheck() {
+  const ref = useRef<HTMLCanvasElement>(null)
+  const [three, setThree] = useState(() => !!check3d && !matchMedia('(prefers-reduced-motion: reduce)').matches)
+  useEffect(() => {
+    if (!three || !ref.current || !check3d) return
+    return check3d.mountCheck3D(ref.current, 128)
+  }, [three])
+  useEffect(() => {
+    // אם המודול עוד לא נטען, מציגים את הווי השטוח הפעם, ומתחילים לטעון לפעם הבאה
+    if (!check3d) preloadCheck3D()
+  }, [])
+  if (!three) return <DoneCheck size={88} label="" />
+  return <canvas ref={ref} class="check3d" width={256} height={256} aria-hidden="true" onError={() => setThree(false)} />
+}
+
+/** מסך הצלחה קצר: וי ירוק שמסתובב פנימה וטקסט, ונעלם לבד אחרי כשנייה וחצי */
 export function Celebration() {
   const [e, setE] = useState<{ text: string; id: number } | null>(null)
   useEffect(() => onCelebrate(setE), [])
@@ -135,7 +160,7 @@ export function Celebration() {
   return (
     <div class="celebrate" key={e.id} role="status" aria-live="polite">
       <div class="celebrate-in">
-        <DoneCheck size={88} label="" />
+        <BigCheck />
         <p>{e.text}</p>
       </div>
     </div>
