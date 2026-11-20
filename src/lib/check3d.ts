@@ -37,7 +37,7 @@ export function webglOk(): boolean {
 }
 
 /** מצייר את המטבע על הקנבס ומחזיר פונקציה שמשחררת את המשאבים */
-export function mountCheck3D(canvas: HTMLCanvasElement, size: number): () => void {
+export function mountCheck3D(canvas: HTMLCanvasElement, size: number, stopAfter = 2.4): () => void {
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true })
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2))
   renderer.setSize(size, size, false)
@@ -90,7 +90,8 @@ export function mountCheck3D(canvas: HTMLCanvasElement, size: number): () => voi
     coin.scale.setScalar(0.55 + 0.45 * easeOutBack(clamp01(t / 0.5)))
     check.scale.setScalar(Math.max(0.001, easeOutBack(clamp01((t - 0.35) / 0.35))))
     renderer.render(scene, camera)
-    raf = requestAnimationFrame(frame)
+    // אחרי הכניסה עוצרים, כדי שלא תהיה תנועה שלא נגמרת
+    if (t < stopAfter) raf = requestAnimationFrame(frame)
   }
   raf = requestAnimationFrame(frame)
 
