@@ -363,3 +363,6 @@ button, .btn, .seg, .pick, .iconbtn, .steps { user-select: none; -webkit-user-se
 .actions .btn { height: 44px; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .fieldlabel { display: block; font-size: 13px; line-height: 20px; color: var(--ink2); margin-bottom: -8px; }
+
+/* וי תלת-ממדי במסך ההצלחה */
+.check3d { width: 128px; height: 128px; display: block; }
