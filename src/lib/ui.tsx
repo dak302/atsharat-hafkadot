@@ -20,6 +20,12 @@ export function Page(props: { title: string; back?: string; children: ComponentC
   const w = props.wide ? ' wide' : ''
   return (
     <>
+      <a class="skip skip-link" href="#main" onClick={(e) => {
+          e.preventDefault()
+          document.getElementById('main')?.focus()
+        }}>
+        דלג לתוכן
+      </a>
       <header class="appbar">
         <div class={'appbar-in' + w}>
           {props.back != null && (
@@ -31,7 +37,9 @@ export function Page(props: { title: string; back?: string; children: ComponentC
           <SoundToggle />
         </div>
       </header>
-      <main class={'page' + w}>{props.children}</main>
+      <main class={'page' + w} id="main" tabIndex={-1}>
+        {props.children}
+      </main>
     </>
   )
 }

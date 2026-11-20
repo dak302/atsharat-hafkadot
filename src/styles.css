@@ -7,7 +7,7 @@
   --line: rgb(30 30 40 / 0.08);
   --line-strong: rgb(30 30 40 / 0.16);
   --ink: #2b2b33;
-  --ink2: #5f5f6b;
+  --ink2: #4f4f5a;
   --ink3: #6e6e7a;
   --accent: #5b34b0;
   --btn: #5b34b0;
@@ -61,7 +61,7 @@ h2 { font-size: 17px; line-height: 24px; font-weight: 600; }
 .btn.primary { background: var(--btn); color: var(--btn-ink); border-color: transparent; }
 .btn.block { width: 100%; height: 44px; }
 .btn:disabled, .btn.disabled { opacity: 0.4; pointer-events: none; }
-.iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; color: var(--ink2); margin-inline-start: -8px; transition: background-color 150ms var(--ease); }
+.iconbtn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 8px; color: var(--ink2); margin-inline-start: -8px; transition: background-color 150ms var(--ease); }
 .link { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 8px 0; color: var(--ink2); font: 400 13px/20px var(--sans); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .link.neg { color: var(--neg); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -69,7 +69,7 @@ h2 { font-size: 17px; line-height: 24px; font-weight: 600; }
 .grow { flex: 1; min-width: 0; }
 
 input:not([type]), input[type="text"], textarea {
-  width: 100%; height: 40px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line-strong);
+  width: 100%; height: 44px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line-strong);
   background: var(--card); color: var(--ink); font: 400 16px/22px var(--sans);
   transition: border-color 150ms var(--ease);
 }
@@ -355,3 +355,11 @@ button, .btn, .seg, .pick, .iconbtn, .steps { user-select: none; -webkit-user-se
 .page > :nth-child(n + 5) { animation-delay: 140ms; }
 @keyframes page-in { from { opacity: 0; transform: translateY(12px); } }
 @media (prefers-reduced-motion: reduce) { .page > * { animation: none; } }
+
+/* מקלדת: קישור "דלג לתוכן" שמופיע רק כשמגיעים אליו בטאב */
+.skip { position: absolute; inset-inline-start: 8px; top: -64px; z-index: 60; background: var(--card); color: var(--ink); padding: 12px 16px; border-radius: 8px; box-shadow: 0 0 0 2px var(--accent); }
+.skip:focus { top: 8px; }
+.link { min-height: 44px; }
+.actions .btn { height: 44px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.fieldlabel { display: block; font-size: 13px; line-height: 20px; color: var(--ink2); margin-bottom: -8px; }
