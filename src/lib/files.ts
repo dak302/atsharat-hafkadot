@@ -67,7 +67,9 @@ async function readPdf(buf: ArrayBuffer): Promise<{ grid: Cell[][]; warnings: st
   const pdfjs = await import('pdfjs-dist')
   const worker = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(buf) }).promise
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(buf) }).promise.catch(() => {
+    throw new Error('הקובץ לא נפתח כ-PDF תקין. ייתכן שהוא פגום או שנשמר לא נכון. יש לבקש מהחייל להוריד אותו שוב מהבנק.')
+  })
   const warnings: string[] = []
   let producer: string | undefined
   let creator: string | undefined
@@ -102,7 +104,12 @@ async function readPdf(buf: ArrayBuffer): Promise<{ grid: Cell[][]; warnings: st
   return { grid: pdfToGrid(pages), warnings, producer, creator }
 }
 
+/** עו"ש של שנה הוא פחות מ-2MB. קובץ ענק הוא טעות או ניסיון לתקוע את הדפדפן */
+export const MAX_FILE = 15 * 1024 * 1024
+
 export async function readStatement(file: File): Promise<FileResult> {
+  if (file.size > MAX_FILE) throw new Error('הקובץ גדול מדי לעו"ש (מעל 15MB). יש להוריד מהבנק רק את תקופת העו"ש הנדרשת.')
+  if (file.size === 0) throw new Error('הקובץ ריק.')
   const buf = await file.arrayBuffer()
   const bytes = new Uint8Array(buf)
   const fileHash = (await sha256Hex(bytes)).slice(0, 16)
