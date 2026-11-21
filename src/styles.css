@@ -201,12 +201,15 @@ dl { margin-top: 0; }
 .tools { max-width: 210mm; margin: 0 auto 16px; background: var(--card); border-radius: 12px; padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .tools .banner { width: 100%; }
 .sheet {
-  background: #fff; color: #000; width: 210mm; max-width: 100%; min-height: 297mm; margin: 0 auto; padding: 6mm 17mm 14mm;
-  font: 11.5pt/1.55 Arial, "Helvetica Neue", sans-serif; overflow-x: auto;
+  position: relative; background: #fff; color: #000; width: 210mm; height: 297mm; overflow: hidden; margin: 0 auto 16px; padding: 6mm 17mm 16mm;
+  font: 11.5pt/1.55 Arial, "Helvetica Neue", sans-serif;
 }
+.pageno { position: absolute; bottom: 7mm; inset-inline: 0; text-align: center; font-size: 9pt; color: #000; }
+.printwrap { overflow-x: auto; }
+.pages-note { max-width: 210mm; margin: 0 auto 16px; background: var(--card); border-radius: 12px; padding: 12px 16px; font-size: 14px; }
 .sheet b, .sheet strong { font-weight: 700; }
 .sheet p { margin: 0; }
-.sheet .fhead { display: block; width: calc(100% + 34mm); max-width: none; margin: 0 -17mm 2mm; }
+.sheet .fhead { display: block; width: calc(100% + 34mm); height: auto; aspect-ratio: 1430 / 182; max-width: none; margin: 0 -17mm 2mm; }
 .ftitle { border: 1px solid #555; text-align: center; font-weight: 700; padding: 2.2mm 3mm; margin: 0 4mm 8mm; font-size: 11.5pt; }
 .ftitle.narrow { margin: 0 15mm 12mm; }
 .sheet .lead { font-size: 11pt; margin: 3mm 0; line-height: 2.1; }
@@ -236,12 +239,13 @@ dl { margin-top: 0; }
 .mar { margin-inline-end: 5mm; }
 .mar.on { font-weight: 700; border: 1.5px solid #000; border-radius: 50%; padding: 1px 8px; }
 
-@page { size: A4; margin: 0 0 12mm; @bottom-center { content: "עמוד " counter(page) " מתוך " counter(pages); font: 9pt Arial, sans-serif; } }
+@page { size: A4; margin: 0; }
 @media print {
   body { background: #fff; }
   .noprint { display: none !important; }
   .printwrap { background: none; padding: 0; min-height: 0; }
-  .sheet { width: auto; min-height: 0; margin: 0; overflow: visible; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sheet { margin: 0; break-after: page; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .sheet:last-of-type { break-after: auto; }
 }
 /* תנועה מופחתת: בלי הקטנה בלחיצה, אבל שינויי צבע נשארים כי הם משוב */
 @media (prefers-reduced-motion: reduce) { .btn:active, .seg button:active { transform: none; } }
