@@ -1,9 +1,9 @@
-import { useState } from 'preact/hooks'
+import { useLayoutEffect, useRef, useState } from 'preact/hooks'
 import header from '../assets/header.png'
 import { fmtDate, fmtMoney } from '../lib/grid'
 import { getDecl, putDecl } from '../lib/store'
 import { celebrate } from '../lib/celebrate'
-import type { Declaration } from '../lib/types'
+import type { Declaration, LockedRow } from '../lib/types'
 import { ArrowRight, Printer } from 'lucide-preact'
 import { Banner, ICON } from '../lib/ui'
 
@@ -21,14 +21,57 @@ function Fill(props: { v?: string; w?: number }) {
   )
 }
 
+/** שורות של עמוד אחד, ומספר השורות הריקות שמשלימות את הטבלה בעמוד האחרון */
+interface Chunk {
+  rows: LockedRow[]
+  pad: number
+}
+
+/** חלוקה ראשונית: כמספר השורות בטופס הרשמי בכל עמוד. אחר כך המדידה מעבירה שורה לעמוד הבא אם עמוד גולש */
+function initialChunks(rows: LockedRow[], perPage: number): Chunk[] {
+  const out: Chunk[] = []
+  for (let i = 0; i < rows.length; i += perPage) out.push({ rows: rows.slice(i, i + perPage), pad: 0 })
+  if (!out.length) out.push({ rows: [], pad: 0 })
+  const last = out[out.length - 1]
+  last.pad = Math.max(0, perPage - last.rows.length)
+  return out
+}
+
 export function PrintView({ id }: { id: string }) {
   const [d, setD] = useState<Declaration | undefined>(() => getDecl(id))
+  const perPage = 8
+  const [chunks, setChunks] = useState<Chunk[]>(() => initialChunks(d?.sent?.rows ?? [], perPage))
+  const sheets = useRef<(HTMLElement | null)[]>([])
+
+  // הגופן נטען אחרי המדידה הראשונה ומגדיל את הטקסט, ולכן מחלקים מחדש כשהוא מוכן
+  useLayoutEffect(() => {
+    const redo = () => setChunks(initialChunks(d?.sent?.rows ?? [], perPage))
+    let live = true
+    document.fonts?.ready.then(() => { if (live) redo() })
+    return () => { live = false }
+  }, [d?.sent])
+
+  // כל עמוד חייב להיכנס ב-A4 עם כל הטקסט והחתימות. עמוד שגולש מוותר קודם על שורה ריקה, ואחר כך מעביר שורה לעמוד הבא
+  useLayoutEffect(() => {
+    for (let k = 0; k < chunks.length; k++) {
+      const el = sheets.current[k]
+      if (!el || el.scrollHeight <= el.clientHeight + 1) continue
+      const next = chunks.map((c) => ({ rows: [...c.rows], pad: c.pad }))
+      if (next[k].pad > 0) next[k].pad--
+      else if (next[k].rows.length > 1) {
+        const moved = next[k].rows.pop()!
+        if (!next[k + 1]) next.push({ rows: [], pad: 0 })
+        next[k + 1].rows.unshift(moved)
+      } else continue
+      setChunks(next)
+      return
+    }
+  }, [chunks])
+
   if (!d || !d.sent) return <Banner kind="bad">ההצהרה לא נמצאת או שעדיין לא חזרה מהחייל.</Banner>
   const p = d.person ?? {}
   const rows = d.sent.rows
   const disputes = rows.filter((r) => d.answers[r.i]?.dispute).length
-  const minRows = d.type === 'aid' ? 8 : 13
-  const pad = Math.max(0, minRows - rows.length)
   const today = fmtDate(new Date().toISOString().slice(0, 10))
 
   function print() {
@@ -44,7 +87,7 @@ export function PrintView({ id }: { id: string }) {
     }
   }
 
-  const table = (
+  const table = (chunk: Chunk) => (
     <table class="ftable">
       <thead>
         <tr>
@@ -59,7 +102,7 @@ export function PrintView({ id }: { id: string }) {
         </tr>
       </thead>
       <tbody>
-        {rows.map((r) => (
+        {chunk.rows.map((r) => (
           <tr key={r.i}>
             <td>{fmtDate(r.d)}</td>
             <td>{r.a > 0 ? 'הפקדה' : 'משיכה'}</td>
@@ -70,7 +113,7 @@ export function PrintView({ id }: { id: string }) {
             </td>
           </tr>
         ))}
-        {Array.from({ length: pad }, (_, i) => (
+        {Array.from({ length: chunk.pad }, (_, i) => (
           <tr key={'p' + i}>
             <td>&nbsp;</td>
             <td />
@@ -98,15 +141,23 @@ export function PrintView({ id }: { id: string }) {
         {d.report.status !== 'verified' && <Banner kind="warn">קריאת העו"ש של ההצהרה הזו לא אומתה מול היתרות</Banner>}
       </div>
 
-      <article class="sheet">
-        <img class="fhead" src={header} alt='ספר ניהול משרד הת"ש' />
+      {chunks.length > 1 && (
+        <p class="noprint pages-note">
+          ההצהרה ארוכה מעמוד אחד, ולכן היא מחולקת ל-{chunks.length} עמודים. בכל עמוד יש את כל הטופס, וצריך לחתום על כל עמוד.
+        </p>
+      )}
+      {chunks.map((chunk, k) => (
+      <article class="sheet" key={k} ref={(el) => {
+          sheets.current[k] = el
+        }}>
+        <img class="fhead" src={header} width={1430} height={182} alt='ספר ניהול משרד הת"ש' />
         {d.type === 'aid' ? (
           <>
             <div class="ftitle">נספח ו' - הצהרת חייל בפני מפקד בדרגת סמל ומעלה בדבר משיכות והפקדות חריגות</div>
             <p class="lead">
               אני הח״מ <Fill v={p.name} w={130} /> מ.א <Fill v={p.personalNum} w={110} /> <b>מצהיר בזאת על ההוצאות/ההכנסות להלן:</b>
             </p>
-            {table}
+            {table(chunk)}
             <div class="rulebox">
               <u>
                 <b>הצהרה נדרשת על פי הפירוט הבא:</b>
@@ -204,7 +255,7 @@ export function PrintView({ id }: { id: string }) {
             <div class="sec">
               <h4>6. הצהרה לגבי הכנסות קבועות ו/או חד פעמיות (על סגל הת"ש למלא את הפעולות עבורן נדרש הסבר) -</h4>
             </div>
-            {table}
+            {table(chunk)}
             <p class="decl">{DECL_TM}</p>
             <div class="sig">
               <div class="vals">
@@ -222,7 +273,11 @@ export function PrintView({ id }: { id: string }) {
             </div>
           </>
         )}
+        <div class="pageno">
+          עמוד {k + 1} מתוך {chunks.length}
+        </div>
       </article>
+      ))}
     </div>
   )
 }
