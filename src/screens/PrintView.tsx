@@ -39,7 +39,7 @@ function initialChunks(rows: LockedRow[], perPage: number): Chunk[] {
 
 export function PrintView({ id }: { id: string }) {
   const [d, setD] = useState<Declaration | undefined>(() => getDecl(id))
-  const perPage = 8
+  const perPage = 22 // התחלה נדיבה; שורות שלא נכנסות עוברות לדף הבא
   const [chunks, setChunks] = useState<Chunk[]>(() => initialChunks(d?.sent?.rows ?? [], perPage))
   const sheets = useRef<(HTMLElement | null)[]>([])
 
