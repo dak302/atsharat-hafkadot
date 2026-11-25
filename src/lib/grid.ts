@@ -68,6 +68,18 @@ export function parseDate(v: Cell): string | null {
   return null
 }
 
+/** תאריך בלי שנה (06/09), כמו בדפי תנועות שמודפסים בסניף. השנה נלקחת מכותרות החודש. */
+export function parseDayMonth(v: Cell): [number, number] | null {
+  const m = /^(\d{1,2})[./](\d{1,2})$/.exec(clean(v))
+  if (!m) return null
+  const d = Number(m[1])
+  const mo = Number(m[2])
+  return iso(2000, mo, d) ? [d, mo] : null
+}
+
+const MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
+const MONTH_HEADING = new RegExp(`(${MONTHS.join('|')}|מרס)\\s*(\\d{4})`)
+
 type ColKey = 'date' | 'desc' | 'desc2' | 'ref' | 'debit' | 'credit' | 'amount' | 'balance'
 export type ColMap = Partial<Record<ColKey, number>>
 
@@ -82,6 +94,7 @@ export function classifyHeader(raw: Cell): ColKey | 'valueDate' | null {
   if (hasDebit) return 'debit'
   if (hasCredit) return 'credit'
   if (/ערך/.test(s)) return 'valueDate'
+  if (/^יום$/.test(s)) return 'date'
   if (/תאריך/.test(s)) return 'date'
   if (/אסמכת/.test(s)) return 'ref'
   if (/סכום/.test(s)) return 'amount'
@@ -182,6 +195,18 @@ export function parseGrid(rows: Cell[][]): ParseResult {
   const { cols } = header
   const account = findAccount(rows.slice(0, header.index))
 
+  // תאריכים בלי שנה: השנה מכותרת החודש ("ספטמבר 2026"), ואם אין כזו, מתאריך ההפקה של הדף
+  let year: number | undefined
+  let printed: { y: number; m: number } | undefined
+  for (const row of rows.slice(0, header.index)) {
+    const m = /(?:^|\D)(\d{1,2})[./](\d{1,2})[./](\d{4})(?!\d)/.exec(row.map(clean).join(' '))
+    if (m) {
+      printed = { y: Number(m[3]), m: Number(m[2]) }
+      break
+    }
+  }
+  let noYear = false
+
   const raw: RawRow[] = []
   for (let r = header.index + 1; r < rows.length; r++) {
     const row = rows[r]
@@ -189,7 +214,20 @@ export function parseGrid(rows: Cell[][]): ParseResult {
     if (!row || row.every((c) => clean(c) === '')) continue
     // כותרת שחוזרת בכל עמוד
     if (classifyHeader(row[cols.date!]) === 'date') continue
-    const date = parseDate(row[cols.date!])
+    // "תנועות עתידיות" הן הערכה של הבנק לחיובים שעוד לא בוצעו. הן לא חלק מהתנועות בחשבון.
+    if (/(תנועות|פעולות) עתידיות/.test(row.map(clean).join(' '))) break
+    let date = parseDate(row[cols.date!])
+    if (!date) {
+      const dm = parseDayMonth(row[cols.date!])
+      if (dm) {
+        const y = year ?? (printed ? (dm[1] > printed.m ? printed.y - 1 : printed.y) : undefined)
+        if (y) date = iso(y, dm[1], dm[0])
+        else noYear = true
+      } else {
+        const mh = MONTH_HEADING.exec(row.map(clean).join(' '))
+        if (mh) year = Number(mh[2])
+      }
+    }
     if (!date) {
       // שורה בלי תאריך: המשך תיאור, או שורת סיכום/יתרת פתיחה. אם יש בה סכום בעמודות הסכום, מדווחים.
       const hasMoney = [cols.debit, cols.credit, cols.amount].some(
@@ -243,13 +281,14 @@ export function parseGrid(rows: Cell[][]): ParseResult {
       if (a < 0) amount = a
       else unsigned = a // חיובי: ייתכן שהבנק מציג בלי סימן, נכריע לפי היתרה
     }
-    if (cols.balance != null && balance === undefined) {
+    // יתרה ריקה תקינה (נבדקת בתנועה הבאה שיש לה יתרה). רק טקסט שאינו מספר הוא תקלה.
+    if (cols.balance != null && balance === undefined && clean(row[cols.balance])) {
       issues.push({ row: line, msg: 'יתרה לא קריאה בשורה' })
     }
     raw.push({ line, date, desc, ref, amount, unsigned, balance })
   }
 
-  if (!raw.length) return empty('לא נמצאו תנועות בקובץ.')
+  if (!raw.length) return empty(noYear ? 'בתאריכים בקובץ אין שנה, ולא נמצאה כותרת חודש שממנה אפשר להבין אותה.' : 'לא נמצאו תנועות בקובץ.')
 
   // סדר כרונולוגי: יש בנקים שמציגים מהחדש לישן
   const first = raw[0].date
