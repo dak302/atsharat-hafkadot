@@ -80,10 +80,10 @@ export function NewDecl() {
         <div class="field">
           <span>סוג הבקשה</span>
           <div class="seg">
-            <button class={type === 'aid' ? 'on' : ''} onClick={() => setType('aid')}>
+            <button class={type === 'aid' ? 'on' : ''} aria-pressed={type === 'aid'} onClick={() => setType('aid')}>
               סיוע כלכלי
             </button>
-            <button class={type === 'tashmash' ? 'on' : ''} onClick={() => setType('tashmash')}>
+            <button class={type === 'tashmash' ? 'on' : ''} aria-pressed={type === 'tashmash'} onClick={() => setType('tashmash')}>
               תשמ"ש
             </button>
           </div>
@@ -92,10 +92,10 @@ export function NewDecl() {
           <div class="field">
             <span>מי ימלא את ההסברים?</span>
             <div class="seg">
-              <button class={recipient === 'soldier' ? 'on' : ''} onClick={() => setRecipient('soldier')}>
+              <button class={recipient === 'soldier' ? 'on' : ''} aria-pressed={recipient === 'soldier'} onClick={() => setRecipient('soldier')}>
                 החייל
               </button>
-              <button class={recipient === 'owner' ? 'on' : ''} onClick={() => setRecipient('owner')}>
+              <button class={recipient === 'owner' ? 'on' : ''} aria-pressed={recipient === 'owner'} onClick={() => setRecipient('owner')}>
                 בעל החשבון (הורה / בן זוג)
               </button>
             </div>

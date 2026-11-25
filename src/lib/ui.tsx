@@ -97,7 +97,8 @@ export function Steps({ at }: { at: number }) {
 export function DoneCheck(props: { size?: number; label?: string }) {
   const n = props.size ?? 20
   return (
-    <svg class="donecheck" width={n} height={n} viewBox="0 0 24 24" role="img" aria-label={props.label ?? 'בוצע'}>
+    <svg class="donecheck" width={n} height={n} viewBox="0 0 24 24" {...(props.label === '' ? { 'aria-hidden': 'true' } : { role: 'img' })}>
+      {props.label !== '' && <title>{props.label ?? 'בוצע'}</title>}
       <circle cx="12" cy="12" r="12" />
       <path d="M7 12.5l3.2 3.2L17 9" pathLength={1} />
     </svg>

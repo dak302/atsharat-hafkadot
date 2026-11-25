@@ -176,7 +176,7 @@ export function Soldier({ code }: { code: string }) {
               <span>מצב משפחתי</span>
               <div class="seg wrap">
                 {MARITAL.map((m) => (
-                  <button class={p.marital === m ? 'on' : ''} onClick={() => setP({ marital: m })}>
+                  <button class={p.marital === m ? 'on' : ''} aria-pressed={p.marital === m} onClick={() => setP({ marital: m })}>
                     {m}
                   </button>
                 ))}
