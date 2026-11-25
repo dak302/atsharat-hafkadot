@@ -93,11 +93,11 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
           </>
         )}
       </Banner>
-      <div class="seg" role="tablist">
-        <button class={!onlySel ? 'on' : ''} onClick={() => setOnlySel(false)}>
+      <div class="seg" role="group" aria-label="תצוגה">
+        <button class={!onlySel ? 'on' : ''} aria-pressed={!onlySel} onClick={() => setOnlySel(false)}>
           כל התנועות <span class="num">{rows.length}</span>
         </button>
-        <button class={onlySel ? 'on' : ''} onClick={() => setOnlySel(true)}>
+        <button class={onlySel ? 'on' : ''} aria-pressed={onlySel} onClick={() => setOnlySel(true)}>
           רק מה שנבחר <span class="num">{selected}</span>
         </button>
       </div>
@@ -106,7 +106,7 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
         return (
           <section class="month" key={m.month}>
             <header class="mhead">
-              <h3>{monthName(m.month)}</h3>
+              <h2>{monthName(m.month)}</h2>
             </header>
             {mr.length === 0 ? (
               <p class="muted">לא סומנו שורות בחודש הזה</p>
@@ -141,10 +141,10 @@ function Review({ d, update, setD }: { d: Declaration; update: Upd; setD: (d: De
                       )}
                       {!aid && r.include && r.tx.amount > 0 && (
                         <span class="seg small" aria-label="סוג ההכנסה">
-                          <button class={r.fixed === true ? 'on' : ''} onClick={() => setFixed(r.tx.id, true)}>
+                          <button class={r.fixed === true ? 'on' : ''} aria-pressed={r.fixed === true} onClick={() => setFixed(r.tx.id, true)}>
                             קבועה
                           </button>
-                          <button class={r.fixed === false ? 'on' : ''} onClick={() => setFixed(r.tx.id, false)}>
+                          <button class={r.fixed === false ? 'on' : ''} aria-pressed={r.fixed === false} onClick={() => setFixed(r.tx.id, false)}>
                             חד פעמית
                           </button>
                         </span>
