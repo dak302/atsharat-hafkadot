@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseDate, parseGrid, parseNum } from '../src/lib/grid'
+import { parseDate, parseDayMonth, parseGrid, parseNum } from '../src/lib/grid'
 import { pdfToGrid, unvisual, type PdfItem } from '../src/lib/pdfgrid'
 import { evaluate, lockedRows } from '../src/lib/rules'
 import { decodePayload, decryptJson, encodePayload, encryptJson, extractCode, lockHash } from '../src/lib/codec'
@@ -117,6 +117,58 @@ describe('PDF', () => {
     expect(r.txs.map((t) => t.amount)).toEqual([1500, -400])
     expect(r.txs[1].desc).toBe('מזומן משיכת'.split(' ').join(' '))
     expect(r.account.bank).toBe('לאומי')
+  })
+  it('דף תנועות שמודפס בסניף: אות לכל פריט, תאריך בלי שנה, כותרת חודש, תיאור שממשיך מתחת', () => {
+    // כל אות עברית היא פריט נפרד, כמו בקבצים האמיתיים. מספרים שלמים. כל הנתונים מומצאים.
+    const W = 6
+    const heb = (word: string, right: number, y: number): PdfItem[] =>
+      [...word].map((ch, k) => ({ str: ch, x: right - (k + 1) * (W - 0.5), y, w: W }))
+    const num = (str: string, x: number, y: number): PdfItem => ({ str, x, y, w: str.length * 5 })
+    const words = (text: string, right: number, y: number) => {
+      const out: PdfItem[] = []
+      for (const w of text.split(' ')) {
+        out.push(...heb(w, right, y))
+        right -= w.length * (W - 0.5) + 5
+      }
+      return out
+    }
+    const page: PdfItem[] = [
+      ...words('לכבוד ישראל ישראלי', 560, 760),
+      num('01/12/2026', 42, 770),
+      ...heb('יום', 557, 620), ...heb('ערך', 525, 620),
+      ...heb('תיאור', 421, 620), ...heb('הפעולה', 388, 620),
+      ...heb('אסמכתא', 290, 620), ...heb('זכות', 230, 620), ...heb('חובה', 176, 620), ...heb('יתרה', 110, 620),
+      ...words('נובמבר', 557, 600), num('2026', 496, 600), ...words('העברה מדף קודם', 481, 600), num('1,000.00', 71, 600),
+      num('03/11', 529, 588), ...heb('ח', 492, 588), ...words('העברה מחברה', 481, 588), num('11', 257, 588), num('500.00', 207, 588),
+      ...words('משכורת', 481, 576),
+      num('05/11', 529, 564), ...words('חיוב לכרטיס', 481, 564), num('12', 257, 564), num('-200.00', 152, 564), num('1,300.00', 71, 564),
+      ...words('דצמבר', 557, 540), num('2026', 496, 540),
+      num('01/12', 529, 528), ...heb('ד', 492, 528), ...words('העברה לחבר', 481, 528), num('13', 257, 528), num('-100.00', 152, 528), num('1,200.00', 71, 528),
+      ...words('המשך בעמוד הבא', 110, 500),
+      ...words('תנועות עתידיות', 557, 480),
+      num('09/12', 529, 468), ...words('חיוב לכרטיס', 481, 468), num('-50.00', 152, 468), num('1,150.00', 71, 468),
+    ]
+    const r = parseGrid(pdfToGrid([page]))
+    expect(r.report.issues).toEqual([])
+    expect(r.report.status).toBe('verified')
+    expect(r.txs.map((t) => [t.date, t.amount])).toEqual([
+      ['2026-11-03', 500],
+      ['2026-11-05', -200],
+      ['2026-12-01', -100],
+    ])
+    expect(r.txs[0].desc).toBe('העברה מחברה משכורת')
+    expect(r.txs[2].desc).toBe('העברה לחבר')
+  })
+  it('תאריך בלי שנה: השנה מתאריך ההפקה כשאין כותרת חודש', () => {
+    const r = parseGrid([
+      ['הופק ב-05/01/2027'],
+      ['יום', 'תיאור', 'זכות', 'חובה', 'יתרה'],
+      ['28/12', 'הפקדה', '100', '', '100'],
+      ['02/01', 'משיכה', '', '-40', '60'],
+    ])
+    expect(r.txs.map((t) => t.date)).toEqual(['2026-12-28', '2027-01-02'])
+    expect(parseDayMonth('31/02')).toBeNull()
+    expect(parseDayMonth('29/02')).toEqual([29, 2])
   })
   it('עברית הפוכה', () => {
     expect(unvisual('ךיראת')).toBe('תאריך')
