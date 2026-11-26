@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseDate, parseDayMonth, parseGrid, parseNum } from '../src/lib/grid'
 import { pdfToGrid, unvisual, type PdfItem } from '../src/lib/pdfgrid'
+import { isGarbled } from '../src/lib/files'
 import { evaluate, lockedRows } from '../src/lib/rules'
 import { decodePayload, decryptJson, encodePayload, encryptJson, extractCode, lockHash } from '../src/lib/codec'
 import type { Tx } from '../src/lib/types'
@@ -169,6 +170,14 @@ describe('PDF', () => {
     expect(r.txs.map((t) => t.date)).toEqual(['2026-12-28', '2027-01-02'])
     expect(parseDayMonth('31/02')).toBeNull()
     expect(parseDayMonth('29/02')).toEqual([29, 2])
+  })
+  it('PDF שהודפס במדפסת PDF והאותיות בו הן ציורים: מזוהה כקובץ שאי אפשר לקרוא', () => {
+    const junk = (str: string, y: number): PdfItem => ({ str, x: 50, y, w: 100 })
+    const garbled = Array.from({ length: 30 }, (_, k) => junk('ÿ!"$ $#9 e*^.,^ÿ4*5*)4 [3+(/', 700 - k * 12))
+    expect(isGarbled([garbled])).toBe(true)
+    const real = [...garbled, junk('01/09/2026 העברה 500.00', 300)]
+    expect(isGarbled([real])).toBe(false)
+    expect(isGarbled([[junk('ÿ!"$', 700)]])).toBe(false) // מעט טקסט: מטופל כתמונה
   })
   it('עברית הפוכה', () => {
     expect(unvisual('ךיראת')).toBe('תאריך')

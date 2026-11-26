@@ -101,7 +101,26 @@ async function readPdf(buf: ArrayBuffer): Promise<{ grid: Cell[][]; warnings: st
   if (chars < 40) {
     throw new Error('ה-PDF הזה הוא תמונה (צילום מסך, צילום או סריקה), ואין בו טקסט לקרוא. יש לבקש מהחייל את הקובץ המקורי שהורד מהאתר או מהאפליקציה של הבנק.')
   }
+  if (isGarbled(pages)) {
+    throw new Error(
+      'הקובץ הודפס מאתר הבנק דרך מדפסת PDF במחשב (למשל Adobe PDF), והטקסט בו נשמר כציורים שאי אפשר לקרוא. ' +
+        'יש לבקש מהחייל להוריד את הקובץ שוב: באתר הבנק, בהדפסה בכרום, לבחור ביעד "שמירה כ-PDF" (ולא Adobe PDF), או להוריד מהאפליקציה של הבנק.',
+    )
+  }
   return { grid: pdfToGrid(pages), warnings, producer, creator }
+}
+
+/**
+ * יש מדפסות PDF ששומרות את האותיות כציורים בלי המשמעות שלהן. יוצא הרבה "טקסט" שכולו סימנים,
+ * בלי אף אות עברית ובלי אף תאריך. קובץ כזה אי אפשר לקרוא, וחשוב להגיד את זה במפורש.
+ */
+export function isGarbled(pages: PdfItem[][]): boolean {
+  const text = pages.flat().map((i) => i.str).join(' ')
+  const visible = text.replace(/\s/g, '').length
+  if (visible < 200) return false
+  const heb = (text.match(/[\u05D0-\u05EA]/g) ?? []).length
+  const dates = /\d{1,2}[./]\d{1,2}([./]\d{2,4})?/.test(text)
+  return heb / visible < 0.02 && !dates
 }
 
 /** עו"ש של שנה הוא פחות מ-2MB. קובץ ענק הוא טעות או ניסיון לתקוע את הדפדפן */
